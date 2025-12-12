@@ -1,0 +1,5 @@
+{
+  "name": "台美股資產管家1212",
+  "description": "A comprehensive stock trading record application supporting US and Taiwan markets. Features asset summation, cost basis tracking, yearly performance charts, and AI-powered portfolio analysis.",
+  "requestFramePermissions": []
+}
