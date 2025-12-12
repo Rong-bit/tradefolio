@@ -17,6 +17,7 @@ interface Props {
   accounts: Account[];
   onUpdatePrice: (key: string, price: number) => void;
   onAutoUpdate: () => Promise<void>;
+  isGuest?: boolean;
 }
 
 const Dashboard: React.FC<Props> = ({ 
@@ -29,7 +30,8 @@ const Dashboard: React.FC<Props> = ({
   cashFlows, 
   accounts,
   onUpdatePrice,
-  onAutoUpdate
+  onAutoUpdate,
+  isGuest = false
 }) => {
   const [aiAnalysis, setAiAnalysis] = useState<string | null>(null);
   const [loadingAi, setLoadingAi] = useState(false);
@@ -205,57 +207,49 @@ const Dashboard: React.FC<Props> = ({
         )}
       </div>
 
-      {/* Main Chart */}
-      <div className="bg-white p-6 rounded-xl shadow overflow-hidden">
-        <h3 className="font-bold text-slate-800 text-lg mb-4">資產與成本趨勢 (Asset vs Cost)</h3>
-        {/* 使用 overflow-x-auto 確保小螢幕可捲動，但大螢幕自動適應寬度不超出容器 */}
-        <div className="w-full overflow-x-auto">
-          <div className="min-w-[800px] h-[450px]">
-            {isMounted && chartData.length > 0 ? (
-              <ResponsiveContainer width="100%" height="100%">
-                <ComposedChart data={chartData} margin={{ top: 20, right: 20, left: 20, bottom: 20 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-                  <XAxis 
-                    dataKey="year" 
-                    stroke="#64748b" 
-                    fontSize={12} 
-                    padding={{ left: 20, right: 20 }}
-                  />
-                  {/* Left Axis: Currency */}
-                  <YAxis yAxisId="left" stroke="#64748b" fontSize={12} tickFormatter={(val) => `${val / 1000}k`} />
-                  {/* Right Axis: Percentage */}
-                  <YAxis yAxisId="right" orientation="right" stroke="#ef4444" fontSize={12} tickFormatter={(val) => `${(val * 100).toFixed(0)}%`} />
-                  <Tooltip 
-                    contentStyle={{ backgroundColor: '#fff', borderRadius: '8px', border: '1px solid #e2e8f0' }}
-                    formatter={(value: number, name: string) => [
-                      name === '資產/成本比' ? `${(value * 100).toFixed(1)}%` : formatCurrency(value, 'TWD'),
-                      name
-                    ]}
-                  />
-                  <Legend />
-                  {/* Invested Cost: Purple Bar */}
-                  <Bar yAxisId="left" dataKey="cost" name="投資成本" fill="#8b5cf6" barSize={20} radius={[4, 4, 0, 0]} />
-                  
-                  {/* Estimated Assets: Bright Blue Dashed Line */}
-                  <Line yAxisId="left" type="monotone" dataKey="estTotalAssets" name="預估總資產 (8%)" stroke="#3b82f6" strokeWidth={2} strokeDasharray="5 5" dot={false} />
-                  
-                  {/* Total Assets: Cyan Solid Line */}
-                  <Line yAxisId="left" type="monotone" dataKey="totalAssets" name="總資產" stroke="#06b6d4" strokeWidth={3} dot={{ r: 4, fill: '#06b6d4', strokeWidth: 0 }} />
-                  
-                  {/* Ratio: Red Line (Percentage) */}
-                  <Line yAxisId="right" type="monotone" dataKey="assetCostRatio" name="資產/成本比" stroke="#ef4444" strokeWidth={2} dot={false} />
-                </ComposedChart>
-              </ResponsiveContainer>
-            ) : (
-               <div className="h-full flex items-center justify-center text-slate-400">
-                  {!isMounted ? '圖表載入中...' : chartData.length === 0 ? '請先新增資金匯入與交易紀錄' : '載入圖表...'}
-               </div>
-            )}
+      {/* Main Chart (Cost vs Asset) - Only shown if NOT guest */}
+      {!isGuest && (
+        <div className="bg-white p-6 rounded-xl shadow overflow-hidden">
+          <h3 className="font-bold text-slate-800 text-lg mb-4">資產與成本趨勢 (Asset vs Cost)</h3>
+          <div className="w-full overflow-x-auto">
+            <div className="min-w-[800px] h-[450px]">
+              {isMounted && chartData.length > 0 ? (
+                <ResponsiveContainer width="100%" height="100%">
+                  <ComposedChart data={chartData} margin={{ top: 20, right: 20, left: 20, bottom: 20 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+                    <XAxis 
+                      dataKey="year" 
+                      stroke="#64748b" 
+                      fontSize={12} 
+                      padding={{ left: 20, right: 20 }}
+                    />
+                    <YAxis yAxisId="left" stroke="#64748b" fontSize={12} tickFormatter={(val) => `${val / 1000}k`} />
+                    <YAxis yAxisId="right" orientation="right" stroke="#ef4444" fontSize={12} tickFormatter={(val) => `${(val * 100).toFixed(0)}%`} />
+                    <Tooltip 
+                      contentStyle={{ backgroundColor: '#fff', borderRadius: '8px', border: '1px solid #e2e8f0' }}
+                      formatter={(value: number, name: string) => [
+                        name === '資產/成本比' ? `${(value * 100).toFixed(1)}%` : formatCurrency(value, 'TWD'),
+                        name
+                      ]}
+                    />
+                    <Legend />
+                    <Bar yAxisId="left" dataKey="cost" name="投資成本" fill="#8b5cf6" barSize={20} radius={[4, 4, 0, 0]} />
+                    <Line yAxisId="left" type="monotone" dataKey="estTotalAssets" name="預估總資產 (8%)" stroke="#3b82f6" strokeWidth={2} strokeDasharray="5 5" dot={false} />
+                    <Line yAxisId="left" type="monotone" dataKey="totalAssets" name="總資產" stroke="#06b6d4" strokeWidth={3} dot={{ r: 4, fill: '#06b6d4', strokeWidth: 0 }} />
+                    <Line yAxisId="right" type="monotone" dataKey="assetCostRatio" name="資產/成本比" stroke="#ef4444" strokeWidth={2} dot={false} />
+                  </ComposedChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="h-full flex items-center justify-center text-slate-400">
+                    {!isMounted ? '圖表載入中...' : chartData.length === 0 ? '請先新增資金匯入與交易紀錄' : '載入圖表...'}
+                </div>
+              )}
+            </div>
           </div>
         </div>
-      </div>
+      )}
 
-      {/* Allocation Pie Chart */}
+      {/* Allocation Pie Chart - Shown to everyone */}
       <div className="bg-white p-6 rounded-xl shadow overflow-hidden">
         <h3 className="font-bold text-slate-800 text-lg mb-4">資產配置 (Allocation)</h3>
         <div 
@@ -312,43 +306,43 @@ const Dashboard: React.FC<Props> = ({
         </div>
       </div>
       
-      {/* Annual Performance Table (Below Charts) */}
-      {annualPerformance.length > 0 && (
-        <div className="bg-white rounded-xl shadow overflow-hidden">
-          <div className="px-6 py-4 border-b border-slate-100">
-             <h3 className="font-bold text-slate-800 text-lg">年度績效表 (Annual Performance)</h3>
-          </div>
-          <div className="overflow-x-auto">
-            <table className="min-w-full text-sm text-left">
-              <thead className="bg-slate-50 text-slate-500 uppercase font-medium">
-                <tr>
-                  <th className="px-6 py-3">年份</th>
-                  <th className="px-6 py-3 text-right">期初資產</th>
-                  <th className="px-6 py-3 text-right">年度淨投入</th>
-                  <th className="px-6 py-3 text-right">期末資產</th>
-                  <th className="px-6 py-3 text-right">年度損益</th>
-                  <th className="px-6 py-3 text-right">年度報酬率 (ROI)</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {annualPerformance.map(item => (
-                  <tr key={item.year} className="hover:bg-slate-50">
-                    <td className="px-6 py-3 font-bold text-slate-700">{item.year}</td>
-                    <td className="px-6 py-3 text-right text-slate-500">{formatCurrency(item.startAssets, 'TWD')}</td>
-                    <td className="px-6 py-3 text-right text-slate-500">{formatCurrency(item.netInflow, 'TWD')}</td>
-                    <td className="px-6 py-3 text-right font-medium">{formatCurrency(item.endAssets, 'TWD')}</td>
-                    <td className={`px-6 py-3 text-right font-bold ${item.profit >= 0 ? 'text-success' : 'text-danger'}`}>
-                      {formatCurrency(item.profit, 'TWD')}
-                    </td>
-                    <td className={`px-6 py-3 text-right font-bold ${item.roi >= 0 ? 'text-success' : 'text-danger'}`}>
-                      {item.roi.toFixed(2)}%
-                    </td>
+      {/* Annual Performance Table (Below Charts) - Only shown if NOT guest */}
+      {!isGuest && annualPerformance.length > 0 && (
+          <div className="bg-white rounded-xl shadow overflow-hidden">
+            <div className="px-6 py-4 border-b border-slate-100">
+              <h3 className="font-bold text-slate-800 text-lg">年度績效表 (Annual Performance)</h3>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="min-w-full text-sm text-left">
+                <thead className="bg-slate-50 text-slate-500 uppercase font-medium">
+                  <tr>
+                    <th className="px-6 py-3">年份</th>
+                    <th className="px-6 py-3 text-right">期初資產</th>
+                    <th className="px-6 py-3 text-right">年度淨投入</th>
+                    <th className="px-6 py-3 text-right">期末資產</th>
+                    <th className="px-6 py-3 text-right">年度損益</th>
+                    <th className="px-6 py-3 text-right">年度報酬率 (ROI)</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {annualPerformance.map(item => (
+                    <tr key={item.year} className="hover:bg-slate-50">
+                      <td className="px-6 py-3 font-bold text-slate-700">{item.year}</td>
+                      <td className="px-6 py-3 text-right text-slate-500">{formatCurrency(item.startAssets, 'TWD')}</td>
+                      <td className="px-6 py-3 text-right text-slate-500">{formatCurrency(item.netInflow, 'TWD')}</td>
+                      <td className="px-6 py-3 text-right font-medium">{formatCurrency(item.endAssets, 'TWD')}</td>
+                      <td className={`px-6 py-3 text-right font-bold ${item.profit >= 0 ? 'text-success' : 'text-danger'}`}>
+                        {formatCurrency(item.profit, 'TWD')}
+                      </td>
+                      <td className={`px-6 py-3 text-right font-bold ${item.roi >= 0 ? 'text-success' : 'text-danger'}`}>
+                        {item.roi.toFixed(2)}%
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
-        </div>
       )}
 
       {/* Account List Card */}
