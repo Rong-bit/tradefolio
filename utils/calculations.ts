@@ -1,4 +1,3 @@
-
 import { 
   Transaction, 
   CashFlow, 
@@ -210,13 +209,16 @@ export const generateAdvancedChartData = (
       const account = accounts.find(a => a.id === cf.accountId);
       const isUSD = account?.currency === Currency.USD;
       
-      // 修改：使用歷史匯率計算成本
-      let rate = isUSD ? exchangeRate : 1;
-      if (isUSD && cf.exchangeRate && cf.exchangeRate > 0) {
-        rate = cf.exchangeRate;
+      let amountTWD = 0;
+      if (cf.amountTWD && cf.amountTWD > 0) {
+        amountTWD = cf.amountTWD;
+      } else {
+        let rate = isUSD ? exchangeRate : 1;
+        if (isUSD && cf.exchangeRate && cf.exchangeRate > 0) {
+          rate = cf.exchangeRate;
+        }
+        amountTWD = cf.amount * rate;
       }
-      
-      const amountTWD = cf.amount * rate;
 
       if (cf.type === CashFlowType.DEPOSIT) {
         cumulativeNetInvestedTWD += amountTWD;
@@ -372,13 +374,16 @@ export const calculateAccountPerformance = (
     let netInvestedTWD = 0;
     
     cashFlows.forEach(cf => {
-      // 修改：計算個別帳戶的投入成本時，也優先使用歷史匯率
-      let flowRate = 1;
-      if (isUSD) {
-         flowRate = (cf.exchangeRate && cf.exchangeRate > 0) ? cf.exchangeRate : exchangeRate;
+      let amountFlowTWD = 0;
+      if (cf.amountTWD && cf.amountTWD > 0) {
+        amountFlowTWD = cf.amountTWD;
+      } else {
+         let flowRate = 1;
+         if (isUSD) {
+            flowRate = (cf.exchangeRate && cf.exchangeRate > 0) ? cf.exchangeRate : exchangeRate;
+         }
+         amountFlowTWD = cf.amount * flowRate;
       }
-      const amountNative = cf.amount;
-      const amountFlowTWD = amountNative * flowRate;
 
       if (cf.accountId === acc.id) {
         if (cf.type === CashFlowType.DEPOSIT) {
