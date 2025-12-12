@@ -72,8 +72,8 @@ function App() {
 
   // Calculations
   const { holdings, summary, chartData, assetAllocation, annualPerformance, accountPerformance, updatedAccounts } = useMemo(() => {
-    // 1. Calculate Holdings
-    const calculatedHoldings = calculateHoldings(data.transactions, currentPrices, priceDetails);
+    // 1. Calculate Holdings (Base)
+    const baseHoldings = calculateHoldings(data.transactions, currentPrices, priceDetails);
     
     // 2. Update Account Balances (Cash)
     const updatedAccounts = calculateAccountBalances(data.accounts, data.cashFlows, data.transactions);
@@ -84,10 +84,20 @@ function App() {
         return sum + (acc.balance * rate);
     }, 0);
 
-    const totalStockValueTWD = calculatedHoldings.reduce((sum, h) => {
+    const totalStockValueTWD = baseHoldings.reduce((sum, h) => {
         const rate = h.market === Market.US ? data.exchangeRate : 1;
         return sum + (h.currentValue * rate);
     }, 0);
+
+    const totalAssetsTWD = totalCashTWD + totalStockValueTWD;
+
+    // 4. Apply Weights to Holdings
+    const calculatedHoldings = baseHoldings.map(h => {
+        const rate = h.market === Market.US ? data.exchangeRate : 1;
+        const valTwd = h.currentValue * rate;
+        const weight = totalAssetsTWD > 0 ? (valTwd / totalAssetsTWD) * 100 : 0;
+        return { ...h, weight };
+    });
 
     const netInvestedTWD = data.cashFlows.reduce((acc, cf) => {
       const account = data.accounts.find(a => a.id === cf.accountId);
