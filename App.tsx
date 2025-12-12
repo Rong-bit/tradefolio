@@ -784,7 +784,7 @@ const App: React.FC = () => {
           return idA.value.localeCompare(idB.value);
         }
         
-        const typeOrder = { 'number': 1, 'mixed': 2, 'string': 3 };
+        const typeOrder: Record<string, number> = { 'number': 1, 'mixed': 2, 'string': 3 };
         return typeOrder[idA.type] - typeOrder[idB.type];
       }).map(record => ({
         ...record,
@@ -1527,4 +1527,3 @@ const App: React.FC = () => {
 };
 
 export default App;
-    
