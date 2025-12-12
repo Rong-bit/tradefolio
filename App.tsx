@@ -353,7 +353,7 @@ function App() {
                       { id: 'funds', label: '資金管理' },
                       { id: 'accounts', label: '證券戶' },
                       { id: 'rebalance', label: '再平衡' },
-                      { id: 'help', label: '設定 & 備份' },
+                      { id: 'help', label: '說明 & 備份' },
                   ].map(tab => (
                       <button
                         key={tab.id}
