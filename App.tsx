@@ -672,7 +672,7 @@ const App: React.FC = () => {
                { id: 'history', label: '交易紀錄' },
                ...(!isGuest ? [{ id: 'rebalance', label: '再平衡' }] : []),
                { id: 'accounts', label: '證券戶' },
-               { id: 'help', label: '說明' }
+               { id: 'help', label: '說明 & 備份' }
              ].map(item => (
                <button key={item.id} onClick={() => setView(item.id as View)} className={`px-4 py-3 text-sm font-medium border-b-2 ${view === item.id ? 'border-accent text-white' : 'border-transparent text-slate-400'}`}>{item.label}</button>
              ))}
