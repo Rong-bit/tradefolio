@@ -834,6 +834,19 @@ const App: React.FC = () => {
            </div>
          </div>
       )}
+      {/* 新增：單筆交易刪除確認視窗 */}
+      {isTransactionDeleteConfirmOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+           <div className="bg-white p-6 rounded-lg shadow-xl max-w-sm">
+             <h3 className="font-bold text-lg mb-2">確認刪除此筆交易？</h3>
+             <p className="text-slate-600 text-sm mb-4">此動作無法復原。</p>
+             <div className="flex justify-end gap-2">
+               <button onClick={() => setIsTransactionDeleteConfirmOpen(false)} className="px-4 py-2 text-slate-600 hover:bg-slate-100 rounded">取消</button>
+               <button onClick={confirmRemoveTransaction} className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700">確認刪除</button>
+             </div>
+           </div>
+         </div>
+      )}
       {alertDialog.isOpen && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
           <div className="bg-white p-6 rounded-lg shadow-xl max-w-sm text-center">
