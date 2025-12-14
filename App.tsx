@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useMemo } from 'react';
 import { Transaction, Holding, PortfolioSummary, ChartDataPoint, Market, Account, CashFlow, TransactionType, AssetAllocationItem, AnnualPerformanceItem, AccountPerformance, CashFlowType, Currency } from './types';
 import { calculateHoldings, calculateAccountBalances, generateAdvancedChartData, calculateAssetAllocation, calculateAnnualPerformance, calculateAccountPerformance, calculateXIRR } from './utils/calculations';
@@ -10,12 +11,9 @@ import RebalanceView from './components/RebalanceView';
 import HelpView from './components/HelpView';
 import BatchImportModal from './components/BatchImportModal';
 import { fetchCurrentPrices } from './services/geminiService';
+import { ADMIN_EMAIL, SYSTEM_ACCESS_CODE, GLOBAL_AUTHORIZED_USERS } from './config';
 
 type View = 'dashboard' | 'history' | 'funds' | 'accounts' | 'rebalance' | 'help';
-
-// --- 安全設定 ---
-const ADMIN_EMAIL = 'hjr640511@gmail.com';
-const SYSTEM_ACCESS_CODE = '888888'; 
 
 // 全局覆蓋 confirm 函數
 let globalDebugLogs: string[] = [];
@@ -33,6 +31,8 @@ window.alert = function(message?: string): void {
 };
 
 const App: React.FC = () => {
+  const allAuthorizedUsers = useMemo(() => [ADMIN_EMAIL, ...GLOBAL_AUTHORIZED_USERS], []);
+
   useEffect(() => {
     globalSetDebugLogs = setDebugLogs;
     setDebugLogs([...globalDebugLogs]);
@@ -45,7 +45,6 @@ const App: React.FC = () => {
   const [loginEmail, setLoginEmail] = useState(''); 
   const [loginPassword, setLoginPassword] = useState('');
   const [currentUser, setCurrentUser] = useState(''); 
-  const [authorizedUsers, setAuthorizedUsers] = useState<string[]>([]); 
   
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [accounts, setAccounts] = useState<Account[]>([]);
@@ -87,15 +86,6 @@ const App: React.FC = () => {
     }
   }, [view]);
 
-  // --- Auth & Init ---
-  useEffect(() => {
-    const storedUsers = localStorage.getItem('tf_authorized_users');
-    let loadedUsers: string[] = [];
-    if (storedUsers) loadedUsers = JSON.parse(storedUsers);
-    if (!loadedUsers.includes(ADMIN_EMAIL)) loadedUsers = [ADMIN_EMAIL, ...loadedUsers];
-    setAuthorizedUsers(loadedUsers);
-  }, []);
-
   useEffect(() => {
     const lastUser = localStorage.getItem('tf_last_user');
     const isAuth = localStorage.getItem('tf_is_auth');
@@ -114,10 +104,6 @@ const App: React.FC = () => {
     }
   }, []);
 
-  useEffect(() => {
-    localStorage.setItem('tf_authorized_users', JSON.stringify(authorizedUsers));
-  }, [authorizedUsers]);
-
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
     const email = loginEmail.trim();
@@ -125,6 +111,7 @@ const App: React.FC = () => {
     
     if (!email) return showAlert("請輸入 Email 信箱", "登入錯誤", "error");
 
+    // 1. 管理員登入 (需要密碼)
     if (email === ADMIN_EMAIL) {
       if (password === SYSTEM_ACCESS_CODE) {
         loginSuccess(email, false);
@@ -135,15 +122,15 @@ const App: React.FC = () => {
       }
     }
 
-    if (authorizedUsers.includes(email)) {
-      if (password === SYSTEM_ACCESS_CODE) {
-        loginSuccess(email, false);
-        return;
-      } else {
-         return showAlert("系統通行碼錯誤", "登入失敗", "error");
-      }
+    // 2. 全域授權名單登入 (不需要密碼)
+    // 只要 Email 存在於 GLOBAL_AUTHORIZED_USERS 列表中，即可直接登入
+    if (GLOBAL_AUTHORIZED_USERS.includes(email)) {
+      loginSuccess(email, false);
+      // 如果使用者有輸入密碼，可以忽略，或顯示提示
+      return;
     }
-    showAlert("此 Email 未獲授權。請使用「訪客試用」登入。", "權限不足", "error");
+
+    showAlert("此 Email 未獲授權。請使用「訪客試用」登入，或聯繫管理員將您的 Email 加入設定檔。", "權限不足", "error");
   };
 
   const handleGuestLogin = () => {
@@ -158,9 +145,6 @@ const App: React.FC = () => {
     localStorage.setItem('tf_is_auth', 'true');
     localStorage.setItem('tf_last_user', user);
     localStorage.setItem('tf_is_guest', isGuestUser ? 'true' : 'false');
-    if (!isGuestUser && !authorizedUsers.includes(user)) {
-        setAuthorizedUsers(prev => [...prev, user]);
-    }
   };
 
   const handleLogout = () => {
@@ -175,16 +159,6 @@ const App: React.FC = () => {
     setTransactions([]);
     setAccounts([]);
     setCashFlows([]);
-  };
-
-  const handleAddAuthorizedUser = (email: string) => {
-    if (authorizedUsers.includes(email)) return;
-    setAuthorizedUsers([...authorizedUsers, email]);
-  };
-
-  const handleRemoveAuthorizedUser = (email: string) => {
-    if (email === ADMIN_EMAIL) return showAlert("無法移除系統最高管理員。", "操作錯誤", "error");
-    setAuthorizedUsers(authorizedUsers.filter(u => u !== email));
   };
 
   // --- Persistence ---
@@ -315,7 +289,7 @@ const App: React.FC = () => {
 
   const handleAutoUpdatePrices = async () => {
     const holdingKeys = holdings.map(h => ({ market: h.market, ticker: h.ticker, key: `${h.market}-${h.ticker}` }));
-    const queryList = Array.from(new Set(holdingKeys.map(h => {
+    const queryList: string[] = Array.from(new Set(holdingKeys.map(h => {
        let t = h.ticker;
        if (h.market === Market.TW && !t.includes('TPE:') && !/^\d{4}$/.test(t)) t = `TPE:${t}`;
        if (h.market === Market.TW && /^\d{4}$/.test(t)) t = `TPE:${t}`;
@@ -345,8 +319,8 @@ const App: React.FC = () => {
 
           if (match) {
              const price = match.price;
-             const change = match.change;
-             const changePercent = match.changePercent;
+             const change = match.change || 0;
+             const changePercent = match.changePercent || 0;
              
              newPrices[h.key] = price;
              newDetails[h.key] = { change, changePercent };
@@ -640,7 +614,13 @@ const App: React.FC = () => {
              </div>
              <div>
                <label className="block text-sm font-medium text-slate-700 mb-1">Password</label>
-               <input type="password" value={loginPassword} onChange={e => setLoginPassword(e.target.value)} className="w-full border p-3 rounded" required />
+               <input 
+                 type="password" 
+                 value={loginPassword} 
+                 onChange={e => setLoginPassword(e.target.value)} 
+                 className="w-full border p-3 rounded" 
+                 placeholder="授權使用者無需輸入"
+               />
              </div>
            </div>
            <button type="submit" className="w-full bg-slate-900 text-white py-3 rounded font-bold mt-6">登入</button>
@@ -699,7 +679,13 @@ const App: React.FC = () => {
         {view === 'funds' && <FundManager accounts={accountsWithBalance} cashFlows={cashFlows} onAdd={addCashFlow} onBatchAdd={addBatchCashFlows} onDelete={removeCashFlow} />}
         {view === 'accounts' && <AccountManager accounts={accountsWithBalance} onAdd={addAccount} onDelete={removeAccount} />}
         {view === 'rebalance' && !isGuest && <RebalanceView summary={summary} holdings={holdings} exchangeRate={exchangeRate} targets={rebalanceTargets} onUpdateTargets={updateRebalanceTargets} />}
-        {view === 'help' && <HelpView onExport={handleExportData} onImport={handleImportData} onMigrateLegacy={handleMigrateLegacyData} authorizedUsers={authorizedUsers} onAddUser={handleAddAuthorizedUser} onRemoveUser={handleRemoveAuthorizedUser} currentUser={currentUser} />}
+        {view === 'help' && <HelpView 
+             onExport={handleExportData} 
+             onImport={handleImportData} 
+             onMigrateLegacy={handleMigrateLegacyData} 
+             authorizedUsers={allAuthorizedUsers} 
+             currentUser={currentUser} 
+        />}
         
         {view === 'history' && (
           <div className="space-y-6">

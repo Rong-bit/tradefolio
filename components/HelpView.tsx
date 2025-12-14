@@ -5,9 +5,7 @@ interface Props {
   onExport: () => void;
   onImport: (file: File) => void;
   onMigrateLegacy: () => void;
-  authorizedUsers: string[];
-  onAddUser: (email: string) => void;
-  onRemoveUser: (email: string) => void;
+  authorizedUsers: string[]; 
   currentUser: string;
 }
 
@@ -16,16 +14,12 @@ const HelpView: React.FC<Props> = ({
   onImport, 
   onMigrateLegacy,
   authorizedUsers,
-  onAddUser,
-  onRemoveUser,
   currentUser
 }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [newEmail, setNewEmail] = useState('');
   
   // State for custom confirmation modals
   const [pendingImportFile, setPendingImportFile] = useState<File | null>(null);
-  const [pendingRemoveUser, setPendingRemoveUser] = useState<string | null>(null);
   const [copyFeedback, setCopyFeedback] = useState(false);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -47,23 +41,6 @@ const HelpView: React.FC<Props> = ({
   const cancelImport = () => {
     setPendingImportFile(null);
   };
-
-  const handleAddUserSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newEmail.trim()) return;
-    onAddUser(newEmail.trim());
-    setNewEmail('');
-  };
-
-  const confirmRemoveUser = () => {
-    if (pendingRemoveUser) {
-      onRemoveUser(pendingRemoveUser);
-      setPendingRemoveUser(null);
-    }
-  };
-
-  // Admin check: The first user in the authorized list is considered the Admin
-  const isAdmin = authorizedUsers.length > 0 && authorizedUsers[0] === currentUser;
 
   const content = `
 # TradeFolio 使用說明書
@@ -159,75 +136,44 @@ A: 所有資料儲存於您瀏覽器的 LocalStorage。為了避免資料遺失�
         </div>
       </div>
 
-      {/* User Authorization Management Section (Admin Only) */}
-      {isAdmin && (
-        <div className="bg-white p-6 rounded-lg shadow border-l-4 border-slate-800">
-          <h3 className="text-xl font-bold text-slate-800 mb-4 flex items-center gap-2">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
-            </svg>
-            6. 使用者授權管理 (User Authorization)
-          </h3>
-          <div className="bg-slate-50 p-6 rounded-lg border border-slate-200">
-            <p className="text-sm text-slate-600 mb-4">
-              您是系統管理員。請在此管理可登入系統的 Email 白名單。<br/>
-              <span className="text-xs text-slate-400">注意：名單中的第一位使用者預設為管理員。</span>
-            </p>
-            
-            <form onSubmit={handleAddUserSubmit} className="flex gap-2 mb-6">
-              <input 
-                type="email" 
-                placeholder="輸入 Email 信箱以新增授權..."
-                className="flex-1 border border-slate-300 rounded-md px-3 py-2 text-sm"
-                value={newEmail}
-                onChange={e => setNewEmail(e.target.value)}
-                required
-              />
-              <button 
-                type="submit" 
-                className="bg-slate-800 text-white px-4 py-2 rounded-md text-sm hover:bg-slate-700 whitespace-nowrap"
-              >
-                新增使用者
-              </button>
-            </form>
-
-            <div className="overflow-hidden border border-slate-200 rounded-lg">
-              <table className="min-w-full text-sm">
-                <thead className="bg-slate-100 text-slate-600">
-                  <tr>
-                    <th className="px-4 py-2 text-left">Email 帳號</th>
-                    <th className="px-4 py-2 text-left">角色</th>
-                    <th className="px-4 py-2 text-right">操作</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-200 bg-white">
-                  {authorizedUsers.map((user, index) => (
+      {/* User Authorization Display */}
+      <div className="bg-white p-6 rounded-lg shadow border-l-4 border-slate-800">
+        <h3 className="text-xl font-bold text-slate-800 mb-4 flex items-center gap-2">
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+          </svg>
+          6. 使用者授權名單 (Authorized Users)
+        </h3>
+        <div className="bg-slate-50 p-6 rounded-lg border border-slate-200">
+          <p className="text-sm text-slate-600 mb-4">
+            以下為系統預設可免密碼登入的 Email 名單 (由程式碼設定檔控制)。
+          </p>
+          
+          <div className="overflow-hidden border border-slate-200 rounded-lg">
+            <table className="min-w-full text-sm">
+              <thead className="bg-slate-100 text-slate-600">
+                <tr>
+                  <th className="px-4 py-2 text-left">Email 帳號</th>
+                  <th className="px-4 py-2 text-left">狀態</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-200 bg-white">
+                {authorizedUsers.map((user) => (
                     <tr key={user}>
                       <td className="px-4 py-2 text-slate-800 font-medium">
                         {user}
                         {user === currentUser && <span className="ml-2 text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded">You</span>}
                       </td>
                       <td className="px-4 py-2 text-slate-600">
-                        {index === 0 ? '管理員 (Admin)' : '使用者 (User)'}
-                      </td>
-                      <td className="px-4 py-2 text-right">
-                        {user !== currentUser && (
-                          <button 
-                            onClick={() => setPendingRemoveUser(user)}
-                            className="text-red-500 hover:text-red-700 hover:underline"
-                          >
-                            移除
-                          </button>
-                        )}
+                        <span className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded border border-gray-200">系統授權</span>
                       </td>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                ))}
+              </tbody>
+            </table>
           </div>
         </div>
-      )}
+      </div>
 
       <div className="bg-white p-8 rounded-lg shadow border border-slate-100">
         <div className="flex justify-between items-center mb-6 border-b pb-4">
@@ -276,32 +222,6 @@ A: 所有資料儲存於您瀏覽器的 LocalStorage。為了避免資料遺失�
                 className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 transition shadow-sm"
               >
                 確認覆蓋並還原
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Confirmation Modal for Remove User */}
-      {pendingRemoveUser && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black bg-opacity-50 animate-fade-in">
-          <div className="bg-white rounded-lg shadow-xl max-w-sm w-full p-6">
-            <h3 className="text-lg font-bold text-slate-900 mb-2">確認移除權限</h3>
-            <p className="text-slate-600 mb-6">
-              您確定要移除 <strong>{pendingRemoveUser}</strong> 的登入權限嗎？
-            </p>
-            <div className="flex justify-end gap-3">
-              <button 
-                onClick={() => setPendingRemoveUser(null)}
-                className="px-4 py-2 text-slate-600 hover:bg-slate-100 rounded transition"
-              >
-                取消
-              </button>
-              <button 
-                onClick={confirmRemoveUser}
-                className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 transition shadow-sm"
-              >
-                確認移除
               </button>
             </div>
           </div>
