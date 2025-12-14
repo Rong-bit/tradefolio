@@ -13,6 +13,7 @@ const BatchImportModal: React.FC<Props> = ({ accounts, onImport, onClose }) => {
   const [selectedAccountId, setSelectedAccountId] = useState(accounts[0]?.id || '');
   const [inputText, setInputText] = useState(''); // New state for text area
   const [previewData, setPreviewData] = useState<Transaction[]>([]);
+  const [failCount, setFailCount] = useState(0); // Track failed lines
   const [errorMsg, setErrorMsg] = useState('');
   const [activeTab, setActiveTab] = useState<'file' | 'paste'>('paste'); // Default to paste for ease
 
@@ -84,10 +85,12 @@ const BatchImportModal: React.FC<Props> = ({ accounts, onImport, onClose }) => {
   const parseImportData = (text: string) => {
     try {
       setErrorMsg('');
+      setFailCount(0); // Reset failure count
       console.log('開始解析文字:', text);
       const lines = text.split('\n');
       console.log('分割後的行數:', lines.length, lines);
       const transactions: Transaction[] = [];
+      let currentFailures = 0;
       let headers: string[] = [];
       
       // Detection: Check if it looks like Schwab CSV (has specific headers)
@@ -114,11 +117,15 @@ const BatchImportModal: React.FC<Props> = ({ accounts, onImport, onClose }) => {
             const cleanLine = line.trim();
             if (index === 0 || (cleanLine.includes('"Date"') && cleanLine.includes('"Action"'))) {
               headers = cleanLine.split(',').map(h => h.replace(/"/g, '').trim());
-              return;
+              return; // Header row is not a failure
             }
             const columns = cleanLine.match(/(".*?"|[^",\s]+)(?=\s*,|\s*$)/g) || cleanLine.split(',');
             const cols = columns.map(c => c.replace(/^"|"$/g, '').trim());
-            if (cols.length < 5) return;
+            
+            if (cols.length < 5) {
+                currentFailures++;
+                return;
+            }
 
             const dateIdx = headers.indexOf('Date');
             const actionIdx = headers.indexOf('Action');
@@ -169,6 +176,7 @@ const BatchImportModal: React.FC<Props> = ({ accounts, onImport, onClose }) => {
             }
             
             if (cols.length < 3) {
+              currentFailures++;
               return; // Need at least Date, Type, Ticker
             }
 
@@ -213,7 +221,10 @@ const BatchImportModal: React.FC<Props> = ({ accounts, onImport, onClose }) => {
         }
 
         // --- Common Validation & Ticker Cleaning ---
-        if (!tickerVal || tickerVal === '' || !type) return;
+        if (!tickerVal || tickerVal === '' || !type) {
+            currentFailures++;
+            return;
+        }
 
         // Auto-detect Taiwan Market (TPE: prefix OR 4-digit code)
         if (tickerVal.includes('TPE:') || tickerVal.includes('TW') || /^\d{4}$/.test(tickerVal)) {
@@ -248,8 +259,14 @@ const BatchImportModal: React.FC<Props> = ({ accounts, onImport, onClose }) => {
         });
       });
 
+      setFailCount(currentFailures);
+
       if (transactions.length === 0) {
-        setErrorMsg('無法解析資料。請確認格式是否正確 (例如：日期, 買/賣, 代號, 價格, 數量...)');
+        if (currentFailures > 0) {
+            setErrorMsg(`無法解析資料。共 ${currentFailures} 筆資料格式錯誤，請檢查。`);
+        } else {
+            setErrorMsg('無法解析資料。請確認是否貼上了正確的內容。');
+        }
       } else {
         setPreviewData(transactions);
       }
@@ -398,7 +415,17 @@ const BatchImportModal: React.FC<Props> = ({ accounts, onImport, onClose }) => {
           {previewData.length > 0 && (
             <div>
               <h3 className="font-bold text-slate-800 mb-3 flex justify-between items-center">
-                預覽匯入資料 ({previewData.length} 筆)
+                <span>
+                    預覽匯入資料
+                    <span className="ml-2 font-normal text-sm bg-slate-100 px-2 py-0.5 rounded text-slate-600">
+                        成功: <span className="text-green-600 font-bold">{previewData.length}</span>
+                    </span>
+                    {failCount > 0 && (
+                        <span className="ml-2 font-normal text-sm bg-red-50 px-2 py-0.5 rounded text-red-600 border border-red-100">
+                            未成功: <strong>{failCount}</strong> 筆
+                        </span>
+                    )}
+                </span>
                 <span className="text-xs font-normal text-slate-500">請確認資料無誤後再匯入</span>
               </h3>
               <div className="border rounded-lg overflow-hidden max-h-60 overflow-y-auto">
