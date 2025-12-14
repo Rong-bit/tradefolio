@@ -1,4 +1,3 @@
-
 import { 
   Transaction, 
   CashFlow, 
@@ -184,8 +183,10 @@ export const generateAdvancedChartData = (
   const data: ChartDataPoint[] = [];
   
   let cumulativeNetInvestedTWD = 0; 
+  let accumulatedEstAssets = 0; // Tracks the projected 8% growth
 
   for (let y = startYear; y <= endYear; y++) {
+    const prevCost = cumulativeNetInvestedTWD; // Snapshot before this year's flows
     const flowsInYear = cashFlows.filter(c => new Date(c.date).getFullYear() === y);
     
     flowsInYear.forEach(cf => {
@@ -210,6 +211,15 @@ export const generateAdvancedChartData = (
       }
     });
 
+    // Calculate Net Inflow for this specific year
+    const netInflowThisYear = cumulativeNetInvestedTWD - prevCost;
+
+    // Correct Calculation: Iterative Compounding
+    accumulatedEstAssets = (accumulatedEstAssets + netInflowThisYear) * 1.08;
+    
+    // Ensure estimate doesn't drop below zero in case of large withdrawals
+    if (accumulatedEstAssets < 0) accumulatedEstAssets = 0;
+
     const cost = Math.max(0, cumulativeNetInvestedTWD);
     
     const totalYears = endYear - startYear + 1;
@@ -224,14 +234,17 @@ export const generateAdvancedChartData = (
        totalAssets = cost + (totalProfit * progress);
     }
     
-    const estTotalAssets = cost * Math.pow(1.08, currentYearIndex);
     const assetCostRatio = cost > 0 ? totalAssets / cost : 0;
+    
+    // Profit for the stacked bar
+    const profit = totalAssets - cost;
 
     data.push({
       year: y.toString(),
       cost,
+      profit, // Added Profit
       totalAssets,
-      estTotalAssets,
+      estTotalAssets: accumulatedEstAssets,
       assetCostRatio
     });
   }
@@ -404,25 +417,16 @@ export const calculateAccountPerformance = (
   });
 };
 
-/**
- * Generic XIRR Calculator
- * @param flows Array of { amount: number, date: number (timestamp) }
- * @returns annualized return percentage (e.g. 10.5 for 10.5%)
- */
 export const calculateGenericXIRR = (flows: { amount: number, date: number }[]): number => {
-  // Sort
   flows.sort((a, b) => a.date - b.date);
-  
-  // Need at least one negative and one positive flow for real XIRR
   if (flows.length < 2) return 0;
   
   const validFlows = flows.filter(f => Math.abs(f.amount) > 0.0001);
   if (validFlows.length < 2) return 0;
 
-  // Simple Annualized ROI Fallback function
   const calculateSimpleAnnualizedROI = () => {
      let totalInvested = 0;
-     let totalReturned = 0; // Or current value
+     let totalReturned = 0; 
      let minTime = validFlows[0].date;
      let maxTime = validFlows[validFlows.length-1].date;
      
@@ -433,111 +437,70 @@ export const calculateGenericXIRR = (flows: { amount: number, date: number }[]):
      
      if (totalInvested === 0) return 0;
      const absoluteROI = (totalReturned - totalInvested) / totalInvested;
-     const years = Math.max((maxTime - minTime) / (365 * 24 * 60 * 60 * 1000), 0.1); // Min 0.1 year to avoid infinity
+     const years = Math.max((maxTime - minTime) / (365 * 24 * 60 * 60 * 1000), 0.1); 
      
-     // CAGR formula: (End/Start)^(1/n) - 1
-     // Here: (1 + ROI)^(1/n) - 1
      return (Math.pow(1 + absoluteROI, 1 / years) - 1) * 100;
   };
 
   if (validFlows[validFlows.length-1].date === validFlows[0].date) {
-      return 0; // Same day flows
+      return 0;
   }
 
-  const minDate = validFlows[0].date;
-  const normalizedFlows = validFlows.map(f => ({
-    amount: f.amount,
-    years: (f.date - minDate) / (365 * 24 * 60 * 60 * 1000)
-  }));
-
-  // Newton-Raphson iteration
-  let rate = 0.1; // Initial guess 10%
-  const maxIter = 50;
-  let converged = false;
-
-  for(let i=0; i<maxIter; i++) {
-     let f = 0;
-     let df = 0;
-     for(const flow of normalizedFlows) {
-        // formula: sum (amount / (1+r)^years) = 0
-        const factor = Math.pow(1+rate, flow.years);
-        if (factor === 0 || !isFinite(factor)) continue; 
-        f += flow.amount / factor;
-        df -= (flow.years * flow.amount) / (factor * (1+rate));
-     }
-     
-     if(Math.abs(f) < 1e-5) {
-         converged = true;
-         break;
-     }
-     if(Math.abs(df) < 1e-9) break;
-     
-     const newRate = rate - f/df;
-     if(isNaN(newRate) || !isFinite(newRate)) {
-         rate = 0; // Failed
-         break;
-     }
-     if(Math.abs(newRate - rate) < 1e-5) {
-        rate = newRate;
-        converged = true;
-        break;
-     }
-     rate = newRate;
-  }
+  let rate = 0.1; 
   
-  if (converged && isFinite(rate) && rate > -0.99) {
-      return rate * 100;
-  } else {
-      // Fallback to simple calculation if Newton fails (common for unusual cash flow patterns)
-      return calculateSimpleAnnualizedROI();
-  }
-}
+  for (let i = 0; i < 50; i++) {
+      let fValue = 0;
+      let fDerivative = 0;
+      const t0 = validFlows[0].date;
 
-/**
- * 計算 XIRR (內部報酬率) for Portfolio
- */
+      for (const flow of validFlows) {
+          const years = (flow.date - t0) / (365 * 24 * 60 * 60 * 1000);
+          const exp = Math.pow(1 + rate, years);
+          fValue += flow.amount / exp;
+          fDerivative -= (years * flow.amount) / (exp * (1 + rate));
+      }
+
+      if (Math.abs(fDerivative) < 1e-8) break;
+      const newRate = rate - fValue / fDerivative;
+      if (Math.abs(newRate - rate) < 1e-6) {
+          return newRate * 100;
+      }
+      rate = newRate;
+  }
+
+  return calculateSimpleAnnualizedROI();
+};
+
 export const calculateXIRR = (
   cashFlows: CashFlow[],
   accounts: Account[],
-  currentTotalAssetsTWD: number,
-  defaultExchangeRate: number
+  currentTotalValueTWD: number,
+  exchangeRate: number
 ): number => {
-  const xirrInputs: { amount: number, date: number }[] = [];
+  const xirrFlows: { amount: number, date: number }[] = [];
 
   cashFlows.forEach(cf => {
     if (cf.type !== CashFlowType.DEPOSIT && cf.type !== CashFlowType.WITHDRAW) return;
 
-    const account = accounts.find(a => a.id === cf.accountId);
-    if (!account) return;
-
     let amountTWD = 0;
     if (cf.amountTWD && cf.amountTWD > 0) {
-       amountTWD = cf.amountTWD;
+      amountTWD = cf.amountTWD;
     } else {
-       const isUSD = account.currency === Currency.USD;
-       const rate = isUSD ? (cf.exchangeRate || defaultExchangeRate) : 1;
-       const baseAmount = cf.amount;
-       const fee = cf.fee || 0;
-       
-       if (cf.type === CashFlowType.DEPOSIT) {
-          amountTWD = (baseAmount * rate) + fee;
-       } else {
-          amountTWD = (baseAmount * rate) - fee;
-       }
+      const acc = accounts.find(a => a.id === cf.accountId);
+      const isUSD = acc?.currency === Currency.USD;
+      const rate = isUSD ? (cf.exchangeRate || exchangeRate) : 1;
+      amountTWD = cf.amount * rate;
     }
 
-    const sign = cf.type === CashFlowType.DEPOSIT ? -1 : 1;
-    
-    xirrInputs.push({
-      amount: amountTWD * sign,
-      date: new Date(cf.date).getTime()
-    });
+    if (cf.type === CashFlowType.DEPOSIT) {
+      xirrFlows.push({ amount: -amountTWD, date: new Date(cf.date).getTime() });
+    } else if (cf.type === CashFlowType.WITHDRAW) {
+      xirrFlows.push({ amount: amountTWD, date: new Date(cf.date).getTime() });
+    }
   });
 
-  xirrInputs.push({
-    amount: currentTotalAssetsTWD,
-    date: new Date().getTime()
-  });
+  xirrFlows.push({ amount: currentTotalValueTWD, date: Date.now() });
 
-  return calculateGenericXIRR(xirrInputs);
+  return calculateGenericXIRR(xirrFlows);
 };
+
