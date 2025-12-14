@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Transaction, Holding, PortfolioSummary, ChartDataPoint, Market, Account, CashFlow, TransactionType, AssetAllocationItem, AnnualPerformanceItem, AccountPerformance, CashFlowType, Currency } from './types';
+import { Transaction, Holding, PortfolioSummary, ChartDataPoint, Market, Account, CashFlow, TransactionType, AssetAllocationItem, AnnualPerformanceItem, AccountPerformance, CashFlowType, Currency, HistoricalData } from './types';
 import { calculateHoldings, calculateAccountBalances, generateAdvancedChartData, calculateAssetAllocation, calculateAnnualPerformance, calculateAccountPerformance, calculateXIRR } from './utils/calculations';
 import TransactionForm from './components/TransactionForm';
 import HoldingsTable from './components/HoldingsTable';
@@ -9,6 +9,7 @@ import FundManager from './components/FundManager';
 import RebalanceView from './components/RebalanceView';
 import HelpView from './components/HelpView';
 import BatchImportModal from './components/BatchImportModal';
+import HistoricalDataModal from './components/HistoricalDataModal';
 import { fetchCurrentPrices } from './services/geminiService';
 import { ADMIN_EMAIL, SYSTEM_ACCESS_CODE, GLOBAL_AUTHORIZED_USERS } from './config';
 
@@ -52,12 +53,14 @@ const App: React.FC = () => {
   const [priceDetails, setPriceDetails] = useState<Record<string, { change: number, changePercent: number }>>({});
   const [exchangeRate, setExchangeRate] = useState<number>(31.5);
   const [rebalanceTargets, setRebalanceTargets] = useState<Record<string, number>>({});
+  const [historicalData, setHistoricalData] = useState<HistoricalData>({}); // New state
   
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [isImportOpen, setIsImportOpen] = useState(false);
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
   const [isMigrationConfirmOpen, setIsMigrationConfirmOpen] = useState(false);
   const [isTransactionDeleteConfirmOpen, setIsTransactionDeleteConfirmOpen] = useState(false);
+  const [isHistoricalModalOpen, setIsHistoricalModalOpen] = useState(false); // New Modal State
   const [transactionToDelete, setTransactionToDelete] = useState<string | null>(null);
   const [alertDialog, setAlertDialog] = useState<{isOpen: boolean, title: string, message: string, type: 'info' | 'success' | 'error'}>({
     isOpen: false, title: '', message: '', type: 'info'
@@ -165,6 +168,7 @@ const App: React.FC = () => {
     setPriceDetails({}); // 修正：務必重置
     setExchangeRate(31.5); // 修正：重置為預設值
     setRebalanceTargets({}); // 修正：務必重置
+    setHistoricalData({}); // Reset history
   };
 
   // --- Persistence: LOAD DATA ---
@@ -191,6 +195,7 @@ const App: React.FC = () => {
     setExchangeRate(rate ? parseFloat(rate) : 31.5);
     
     setRebalanceTargets(load('rebalanceTargets', {}));
+    setHistoricalData(load('historicalData', {}));
 
   }, [isAuthenticated, currentUser]);
 
@@ -205,7 +210,8 @@ const App: React.FC = () => {
     localStorage.setItem(getKey('priceDetails'), JSON.stringify(priceDetails));
     localStorage.setItem(getKey('exchangeRate'), exchangeRate.toString());
     localStorage.setItem(getKey('rebalanceTargets'), JSON.stringify(rebalanceTargets));
-  }, [transactions, accounts, cashFlows, currentPrices, priceDetails, exchangeRate, rebalanceTargets, isAuthenticated, currentUser]);
+    localStorage.setItem(getKey('historicalData'), JSON.stringify(historicalData));
+  }, [transactions, accounts, cashFlows, currentPrices, priceDetails, exchangeRate, rebalanceTargets, historicalData, isAuthenticated, currentUser]);
 
   // --- Alert & Modals ---
   const handleMigrateLegacyData = () => setIsMigrationConfirmOpen(true);
@@ -267,8 +273,16 @@ const App: React.FC = () => {
   const updatePrice = (key: string, price: number) => setCurrentPrices(prev => ({ ...prev, [key]: price }));
   const updateRebalanceTargets = (newTargets: Record<string, number>) => setRebalanceTargets(newTargets);
 
+  // --- Historical Data Update Handler ---
+  const handleOpenHistoricalModal = () => setIsHistoricalModalOpen(true);
+  
+  const handleSaveHistoricalData = (newData: HistoricalData) => {
+      setHistoricalData(newData);
+      showAlert("歷史資產數據更新完成！報表已根據真實股價修正。", "更新成功", "success");
+  };
+
   const handleExportData = () => {
-    const data = { version: "2.0", user: currentUser, timestamp: new Date().toISOString(), transactions, accounts, cashFlows, currentPrices, priceDetails, exchangeRate, rebalanceTargets };
+    const data = { version: "2.0", user: currentUser, timestamp: new Date().toISOString(), transactions, accounts, cashFlows, currentPrices, priceDetails, exchangeRate, rebalanceTargets, historicalData };
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
@@ -293,6 +307,7 @@ const App: React.FC = () => {
         if (data.priceDetails) setPriceDetails(data.priceDetails);
         if (data.exchangeRate) setExchangeRate(data.exchangeRate);
         if (data.rebalanceTargets) setRebalanceTargets(data.rebalanceTargets);
+        if (data.historicalData) setHistoricalData(data.historicalData);
         showAlert(`成功還原資料！`, "還原成功", "success");
       } catch (err) {
         showAlert("匯入失敗：檔案格式錯誤。", "匯入失敗", "error");
@@ -607,7 +622,9 @@ const App: React.FC = () => {
     };
   }, [holdings, accountsWithBalance, cashFlows, exchangeRate, accounts, transactions]);
 
-  const chartData = useMemo(() => generateAdvancedChartData(transactions, cashFlows, accounts, summary.totalValueTWD + summary.cashBalanceTWD, exchangeRate), [transactions, cashFlows, accounts, summary, exchangeRate]);
+  // Updated: Pass historicalData to calculations
+  const chartData = useMemo(() => generateAdvancedChartData(transactions, cashFlows, accounts, summary.totalValueTWD + summary.cashBalanceTWD, exchangeRate, historicalData), [transactions, cashFlows, accounts, summary, exchangeRate, historicalData]);
+  
   const assetAllocation = useMemo(() => calculateAssetAllocation(holdings, summary.cashBalanceTWD, exchangeRate), [holdings, summary, exchangeRate]);
   const annualPerformance = useMemo(() => calculateAnnualPerformance(chartData), [chartData]);
   const accountPerformance = useMemo(() => calculateAccountPerformance(accountsWithBalance, holdings, cashFlows, transactions, exchangeRate), [accountsWithBalance, holdings, cashFlows, transactions, exchangeRate]);
@@ -687,6 +704,7 @@ const App: React.FC = () => {
                summary={summary} chartData={chartData} holdings={holdings} assetAllocation={assetAllocation}
                annualPerformance={annualPerformance} accountPerformance={accountPerformance} cashFlows={cashFlows}
                accounts={accountsWithBalance} onUpdatePrice={updatePrice} onAutoUpdate={handleAutoUpdatePrices} isGuest={isGuest}
+               onUpdateHistorical={handleOpenHistoricalModal} // Open Modal
              />
           </>
         )}
@@ -821,6 +839,18 @@ const App: React.FC = () => {
       {/* Modals */}
       {isFormOpen && <TransactionForm accounts={accounts} onAdd={addTransaction} onClose={() => setIsFormOpen(false)} />}
       {isImportOpen && <BatchImportModal accounts={accounts} onImport={addBatchTransactions} onClose={() => setIsImportOpen(false)} />}
+      
+      {isHistoricalModalOpen && (
+        <HistoricalDataModal 
+          transactions={transactions} 
+          cashFlows={cashFlows}
+          accounts={accounts}
+          historicalData={historicalData} 
+          onSave={handleSaveHistoricalData} 
+          onClose={() => setIsHistoricalModalOpen(false)} 
+        />
+      )}
+
       {isDeleteConfirmOpen && (
          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
            <div className="bg-white p-6 rounded-lg shadow-xl max-w-sm">
