@@ -17,6 +17,7 @@ interface Props {
   onUpdatePrice: (key: string, price: number) => void;
   onAutoUpdate: () => Promise<void>;
   isGuest?: boolean;
+  onUpdateHistorical?: () => void; // Changed from Promise to void (opens modal)
 }
 
 const Dashboard: React.FC<Props> = ({ 
@@ -30,7 +31,8 @@ const Dashboard: React.FC<Props> = ({
   accounts,
   onUpdatePrice,
   onAutoUpdate,
-  isGuest = false
+  isGuest = false,
+  onUpdateHistorical
 }) => {
   const [aiAnalysis, setAiAnalysis] = useState<string | null>(null);
   const [loadingAi, setLoadingAi] = useState(false);
@@ -209,7 +211,19 @@ const Dashboard: React.FC<Props> = ({
       {/* Main Chart (Cost vs Asset) - Only shown if NOT guest */}
       {!isGuest && (
         <div className="bg-white p-6 rounded-xl shadow overflow-hidden">
-          <h3 className="font-bold text-slate-800 text-lg mb-4">資產與成本趨勢 (Asset vs Cost)</h3>
+          <div className="flex justify-between items-center mb-4">
+              <h3 className="font-bold text-slate-800 text-lg">資產與成本趨勢 (Asset vs Cost)</h3>
+              {onUpdateHistorical && (
+                <button 
+                  onClick={onUpdateHistorical}
+                  className="text-xs px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded border border-indigo-200 flex items-center gap-1 transition"
+                  title="手動編輯或使用 AI 修正歷史股價"
+                >
+                  <span>🤖</span> AI 校正歷史資產
+                </button>
+              )}
+          </div>
+          
           <div className="w-full overflow-x-auto">
             <div className="min-w-[800px] h-[450px]">
               {isMounted && chartData.length > 0 ? (
@@ -225,8 +239,14 @@ const Dashboard: React.FC<Props> = ({
                     <YAxis yAxisId="left" stroke="#64748b" fontSize={12} tickFormatter={(val) => `${val / 1000}k`} />
                     <Tooltip 
                       contentStyle={{ backgroundColor: '#fff', borderRadius: '8px', border: '1px solid #e2e8f0' }}
-                      formatter={(value: number, name: string) => {
-                        return formatCurrency(value, 'TWD');
+                      formatter={(value: number, name: string, props: any) => {
+                         // Check if this data point is real or simulated
+                         const isReal = props.payload.isRealData;
+                         let suffix = '';
+                         if (name === '總資產' && isReal) suffix = ' (真實股價)';
+                         else if (name === '總資產') suffix = ' (估算)';
+
+                         return [formatCurrency(value, 'TWD'), name + suffix];
                       }}
                     />
                     <Legend />
@@ -329,7 +349,10 @@ const Dashboard: React.FC<Props> = ({
                 <tbody className="divide-y divide-slate-100">
                   {annualPerformance.map(item => (
                     <tr key={item.year} className="hover:bg-slate-50">
-                      <td className="px-6 py-3 font-bold text-slate-700">{item.year}</td>
+                      <td className="px-6 py-3 font-bold text-slate-700">
+                        {item.year}
+                        {item.isRealData && <span title="真實歷史數據" className="ml-2 text-xs cursor-help">✅</span>}
+                      </td>
                       <td className="px-6 py-3 text-right text-slate-500">{formatCurrency(item.startAssets, 'TWD')}</td>
                       <td className="px-6 py-3 text-right text-slate-500">{formatCurrency(item.netInflow, 'TWD')}</td>
                       <td className="px-6 py-3 text-right font-medium">{formatCurrency(item.endAssets, 'TWD')}</td>
