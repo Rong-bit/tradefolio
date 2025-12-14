@@ -89,7 +89,8 @@ const HistoricalDataModal: React.FC<Props> = ({
       // 3. Check if exchange rate needs update
       // Rule: Allow update if it's missing (0/undefined) OR it is exactly 30 (default).
       // If it is any other number (e.g. 32.5), assume user set it and do not overwrite.
-      const rateNeedsUpdate = !currentYearData.exchangeRate || currentYearData.exchangeRate === 0 || currentYearData.exchangeRate === 30;
+      const currentRate = currentYearData.exchangeRate;
+      const rateNeedsUpdate = !currentRate || currentRate === 0 || currentRate === 30;
 
       if (missingTickers.length === 0 && !rateNeedsUpdate) {
           alert('所有持股與匯率皆已有數據，無須 AI 更新。\n若需重新抓取，請先將數值歸零或設為 30。');
@@ -252,7 +253,7 @@ const HistoricalDataModal: React.FC<Props> = ({
                💡 說明：
                <ul className="list-disc pl-5 mt-1 space-y-1">
                    <li>AI 僅會自動補齊<strong className="text-slate-800">數值為 0</strong> 的缺漏資料，已存在的數據不會被覆蓋。</li>
-                   <li>若匯率為預設值 (30)，AI 會嘗試更新；若您已手動設定其他匯率，則不會被覆蓋。</li>
+                   <li>若匯率為預設值 (30)，AI 會嘗試更新；若您已手動設定其他匯率 (如 31.5)，則不會被覆蓋。</li>
                </ul>
            </div>
         </div>
@@ -267,3 +268,4 @@ const HistoricalDataModal: React.FC<Props> = ({
 };
 
 export default HistoricalDataModal;
+
