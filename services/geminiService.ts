@@ -1,236 +1,197 @@
 
-import React, { useState, useMemo } from 'react';
-import { Holding, Market } from '../types';
-import { formatCurrency } from '../utils/calculations';
+import { GoogleGenAI } from "@google/genai";
+import { Holding, PortfolioSummary, Market } from '../types';
 
-interface Props {
-  holdings: Holding[];
-  onUpdatePrice: (key: string, price: number) => void;
-  onAutoUpdate: () => Promise<void>;
-}
-
-const HoldingsTable: React.FC<Props> = ({ holdings, onUpdatePrice, onAutoUpdate }) => {
-  const [isUpdating, setIsUpdating] = useState(false);
-
-  // 合併相同標的 (Ticker + Market) 的持倉
-  const mergedHoldings = useMemo(() => {
-    const map = new Map<string, Holding>();
-
-    holdings.forEach(h => {
-      const key = `${h.market}-${h.ticker}`;
-      if (!map.has(key)) {
-        // Clone to avoid mutation
-        map.set(key, { ...h, accountId: 'merged' });
-      } else {
-        const existing = map.get(key)!;
-        
-        const newQuantity = existing.quantity + h.quantity;
-        const newTotalCost = existing.totalCost + h.totalCost;
-        const newCurrentValue = existing.currentValue + h.currentValue;
-        const newUnrealizedPL = existing.unrealizedPL + h.unrealizedPL;
-        const newWeight = existing.weight + h.weight;
-        
-        // Recalculate derived fields
-        const newAvgCost = newQuantity > 0 ? newTotalCost / newQuantity : 0;
-        const newUnrealizedPLPercent = newTotalCost > 0 ? (newUnrealizedPL / newTotalCost) * 100 : 0;
-
-        // Weighted Average for Annualized Return (by Cost, or Value?)
-        // Standard practice for Portfolio level XIRR is complex. 
-        // For simple display, weighted average of individual XIRRs by current value is a reasonable approximation for UI if not strictly calculating flow.
-        let newAnnualizedReturn = existing.annualizedReturn;
-        const combinedValue = existing.currentValue + h.currentValue;
-        if (combinedValue > 0) {
-            newAnnualizedReturn = (
-                (existing.annualizedReturn * existing.currentValue) + 
-                (h.annualizedReturn * h.currentValue)
-            ) / combinedValue;
-        }
-
-        // Daily Change should be the same for same ticker. 
-        // Take from existing (or new, they should match).
-        
-        map.set(key, {
-          ...existing,
-          quantity: newQuantity,
-          totalCost: newTotalCost,
-          currentValue: newCurrentValue,
-          unrealizedPL: newUnrealizedPL,
-          weight: newWeight,
-          avgCost: newAvgCost,
-          unrealizedPLPercent: newUnrealizedPLPercent,
-          annualizedReturn: newAnnualizedReturn
-        });
-      }
-    });
-
-    // Sort by Weight Descending
-    return Array.from(map.values()).sort((a, b) => b.weight - a.weight);
-  }, [holdings]);
-
-  const handleAutoUpdateClick = async () => {
-    if (isUpdating) return;
-    setIsUpdating(true);
-    try {
-      await onAutoUpdate();
-      alert("股價與匯率更新完成！");
-    } catch (error) {
-      alert("更新失敗，請確認網路或 API Key。");
-    } finally {
-      setIsUpdating(false);
-    }
-  };
-
-  return (
-    <div className="bg-white rounded-xl shadow overflow-hidden border border-slate-100">
-      <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center flex-wrap gap-2 bg-slate-50">
-        <h3 className="font-bold text-slate-800 text-lg flex items-center gap-2">
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-indigo-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
-          </svg>
-          資產配置明細 (Portfolio Holdings)
-        </h3>
-        <button 
-          onClick={handleAutoUpdateClick}
-          disabled={isUpdating}
-          className={`px-3 py-1.5 rounded text-sm font-medium flex items-center gap-2 transition text-white shadow-sm
-            ${isUpdating ? 'bg-slate-400 cursor-not-allowed' : 'bg-indigo-600 hover:bg-indigo-700'}`}
-        >
-          {isUpdating ? (
-            <>
-              <svg className="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-              </svg>
-              AI 搜尋中...
-            </>
-          ) : (
-            <>
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-              </svg>
-              AI 聯網更新股價 & 匯率
-            </>
-          )}
-        </button>
-      </div>
-      <div className="overflow-x-auto">
-        <table className="min-w-full text-sm text-left">
-          <thead className="bg-white text-slate-500 text-xs uppercase font-bold tracking-wider border-b border-slate-100">
-            <tr>
-              <th className="px-4 py-3">市場</th>
-              <th className="px-4 py-3">代號</th>
-              <th className="px-4 py-3 text-right">數量</th>
-              <th className="px-4 py-3 text-right">現價 (Updated)</th>
-              <th className="px-4 py-3 w-32 text-left">比重 (Weight)</th>
-              <th className="px-4 py-3 text-right">市值 (Val)</th>
-              <th className="px-4 py-3 text-right">損益 (P/L)</th>
-              <th className="px-4 py-3 text-right">年化 (ROI)</th>
-              <th className="px-4 py-3 text-right">今日漲跌</th>
-              <th className="px-4 py-3 text-right">均價 (Avg)</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-50 bg-white">
-            {mergedHoldings.length === 0 ? (
-              <tr>
-                <td colSpan={10} className="px-6 py-12 text-center text-slate-400">
-                  尚無持倉資料，請新增交易。
-                </td>
-              </tr>
-            ) : (
-              mergedHoldings.map((h) => {
-                const isProfit = h.unrealizedPL >= 0;
-                const currency = h.market === Market.TW ? 'TWD' : 'USD';
-                const plColor = isProfit ? 'text-emerald-600' : 'text-rose-600';
-                const roiColor = h.annualizedReturn >= 0 ? 'text-blue-600' : 'text-orange-600';
-                const dailyChangeColor = (h.dailyChange || 0) >= 0 ? 'text-emerald-600' : 'text-rose-600';
-                const uniqueKey = `${h.market}-${h.ticker}`;
-                
-                return (
-                  <tr key={uniqueKey} className="hover:bg-slate-50 transition-colors group">
-                    {/* 1. Market */}
-                    <td className="px-4 py-3">
-                      <span className={`px-2 py-0.5 rounded text-[10px] font-bold tracking-wide border ${h.market === Market.US ? 'bg-blue-50 text-blue-600 border-blue-100' : 'bg-green-50 text-green-600 border-green-100'}`}>
-                        {h.market}
-                      </span>
-                    </td>
-                    
-                    {/* 2. Ticker */}
-                    <td className="px-4 py-3 font-bold text-slate-700">{h.ticker}</td>
-                    
-                    {/* 3. Quantity */}
-                    <td className="px-4 py-3 text-right font-mono text-slate-600">
-                      {h.quantity.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 4 })}
-                    </td>
-                    
-                    {/* 4. Current Price */}
-                    <td className="px-4 py-3 text-right">
-                       <div className="flex items-center justify-end gap-1 group-hover:bg-white bg-slate-50/50 rounded px-1 transition-colors">
-                         <span className="text-slate-400 text-xs">$</span>
-                         <input 
-                          type="number"
-                          className="w-20 text-right bg-transparent border-none focus:ring-0 p-0 font-medium text-slate-700"
-                          value={h.currentPrice}
-                          onChange={(e) => onUpdatePrice(`${h.market}-${h.ticker}`, parseFloat(e.target.value) || 0)}
-                          step="0.01"
-                         />
-                       </div>
-                    </td>
-
-                    {/* 5. Weight */}
-                    <td className="px-4 py-3">
-                      <div className="flex flex-col gap-1">
-                        <span className="text-xs font-medium text-slate-600 text-right">{h.weight.toFixed(1)}%</span>
-                        <div className="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden">
-                          <div 
-                            className={`h-full rounded-full ${h.market === Market.US ? 'bg-blue-400' : 'bg-green-400'}`} 
-                            style={{ width: `${Math.min(h.weight, 100)}%` }}
-                          ></div>
-                        </div>
-                      </div>
-                    </td>
-
-                    {/* 6. Market Value */}
-                    <td className="px-4 py-3 text-right font-medium text-slate-800">
-                      {formatCurrency(h.currentValue, currency)}
-                    </td>
-
-                    {/* 7. P/L */}
-                    <td className={`px-4 py-3 text-right font-bold ${plColor}`}>
-                      <div className="flex flex-col items-end leading-tight">
-                        <span>{formatCurrency(h.unrealizedPL, currency)}</span>
-                        <span className="text-[10px] opacity-80">{isProfit ? '+' : ''}{h.unrealizedPLPercent.toFixed(2)}%</span>
-                      </div>
-                    </td>
-
-                    {/* 8. Annualized Return */}
-                    <td className={`px-4 py-3 text-right font-bold ${roiColor}`}>
-                      {h.annualizedReturn && h.annualizedReturn !== 0 ? `${h.annualizedReturn.toFixed(1)}%` : '-'}
-                    </td>
-
-                    {/* 9. Daily Change */}
-                    <td className={`px-4 py-3 text-right text-xs font-bold ${dailyChangeColor}`}>
-                      {h.dailyChange !== undefined && h.dailyChange !== 0 ? (
-                         <div className="flex flex-col items-end">
-                           <span>{h.dailyChange > 0 ? '+' : ''}{h.dailyChange.toFixed(2)}</span>
-                           <span className="opacity-75">{h.dailyChangePercent ? `(${h.dailyChangePercent > 0 ? '+' : ''}${h.dailyChangePercent.toFixed(2)}%)` : ''}</span>
-                         </div>
-                      ) : '-'}
-                    </td>
-
-                    {/* 10. Avg Cost */}
-                    <td className="px-4 py-3 text-right text-slate-500 text-xs">
-                       {formatCurrency(h.avgCost, currency)}
-                    </td>
-                  </tr>
-                );
-              })
-            )}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  );
+const getAiClient = () => {
+  const apiKey = process.env.API_KEY;
+  if (!apiKey) {
+    throw new Error("請設定 API Key 以使用 AI 功能。");
+  }
+  return new GoogleGenAI({ apiKey });
 };
 
-export default HoldingsTable;
+export const analyzePortfolio = async (
+  holdings: Holding[],
+  summary: PortfolioSummary
+): Promise<string> => {
+  try {
+    const ai = getAiClient();
+
+    // Prepare data context - 增加市值與權重資訊，讓 AI 能判斷集中度風險
+    // Update: Convert all values to TWD explicitly for the prompt to avoid AI confusion
+    const holdingsDesc = holdings.map(h => {
+      const isUS = h.market === Market.US;
+      const valueTWD = isUS ? h.currentValue * summary.exchangeRateUsdToTwd : h.currentValue;
+      const currency = isUS ? 'USD' : 'TWD';
+      
+      // Format: Ticker (Market): TWD Value | (Original Currency Value) ...
+      return `- ${h.ticker} (${h.market}): 等值台幣 TWD ${Math.round(valueTWD).toLocaleString()} | (原幣部位: ${currency} ${h.currentValue.toLocaleString()}), 佔比 ${h.weight.toFixed(1)}%, 平均成本 ${currency} ${h.avgCost.toFixed(2)}, 現價 ${currency} ${h.currentPrice.toFixed(2)}, 帳面損益 ${h.unrealizedPLPercent.toFixed(2)}%`;
+    }).join('\n');
+
+    const totalAssets = summary.totalValueTWD + summary.cashBalanceTWD;
+    const cashWeight = totalAssets > 0 ? (summary.cashBalanceTWD / totalAssets) * 100 : 0;
+
+    const prompt = `
+      請擔任我的專業投資顧問 (繁體中文)。
+      
+      【資產概況】 (匯率基準: 1 USD = ${summary.exchangeRateUsdToTwd} TWD)
+      - 總資產 (含現金): TWD ${totalAssets.toLocaleString()}
+      - 現金部位: TWD ${summary.cashBalanceTWD.toLocaleString()} (佔比 ${cashWeight.toFixed(1)}%)
+      - 股票總市值: TWD ${summary.totalValueTWD.toLocaleString()}
+      - 總獲利: TWD ${summary.totalPLTWD.toLocaleString()} (總報酬率 ${summary.totalPLPercent.toFixed(2)}%)
+      
+      【持股明細】 (注意：列表中「等值台幣」已將美股換算為 TWD，請使用此數值分析，**切勿直接加總「原幣部位」的數字**)
+      ${holdingsDesc}
+
+      請根據上述數據提供專業分析 (請使用 Markdown 格式):
+      1. **資產配置健診**: 
+         - 評估現金水位是否適中？
+         - 美股/台股的配置比例看法。
+      2. **風險評估 (Risk Assessment)**: 
+         - 檢視是否有「單一持股佔比過高」的集中度風險？
+         - 產業分佈是否過於集中？
+      3. **具體操作建議**: 
+         - 針對佔比高且獲利的標的，建議續抱還是調節？
+         - 針對虧損標的，給予停損或加碼的建議。
+      4. **總結**: 
+         - 給予一句簡短的投資心法或調整方向。
+
+      請直接給出建議，語氣專業客觀。
+    `;
+
+    const response = await ai.models.generateContent({
+      model: 'gemini-2.5-flash',
+      contents: prompt,
+    });
+
+    return response.text || "無法產生分析報告。";
+  } catch (error) {
+    console.error("Gemini Analysis Error:", error);
+    return "AI 分析發生錯誤，請檢查 API Key 或稍後再試。";
+  }
+};
+
+export interface PriceData {
+  price: number;
+  change: number;
+  changePercent: number;
+}
+
+export const fetchCurrentPrices = async (tickers: string[]): Promise<{ prices: Record<string, PriceData>, exchangeRate: number }> => {
+  try {
+    const ai = getAiClient();
+    
+    // Construct a query for all tickers
+    const queryList = tickers.join(', ');
+    const prompt = `
+      Task:
+      1. Find the current live stock price, daily price change amount, and daily percentage change for the following tickers: ${queryList}.
+      2. Find the current live exchange rate for 1 USD to TWD.
+      
+      Rules:
+      1. For Taiwan stocks (format TPE:XXXX or just XXXX), find the price in TWD.
+      2. For US stocks (format like AAPL, VT), find the price in USD.
+      3. Use Google Search to get the latest data.
+      4. Return ONLY a JSON object with two keys: "prices" (object) and "exchangeRate" (number).
+      5. "prices" keys should be the ticker names as requested (e.g. "TPE:2330" or "AAPL"). Values must be objects with "price" (number), "change" (number), and "changePercent" (number).
+      6. Do not output markdown code blocks, just the raw JSON string.
+      
+      Example output format:
+      {
+        "prices": {
+          "TPE:2330": { "price": 1050, "change": 15.0, "changePercent": 1.45 },
+          "AAPL": { "price": 175.5, "change": -1.2, "changePercent": -0.68 }
+        },
+        "exchangeRate": 32.45
+      }
+    `;
+
+    const response = await ai.models.generateContent({
+      model: 'gemini-2.5-flash',
+      contents: prompt,
+      config: {
+        tools: [{ googleSearch: {} }],
+      },
+    });
+
+    const text = response.text || "{}";
+    const jsonStr = text.replace(/```json|```/g, '').trim();
+    const result = JSON.parse(jsonStr);
+    
+    const prices: Record<string, PriceData> = {};
+    if (result.prices) {
+      Object.entries(result.prices).forEach(([key, val]: [string, any]) => {
+        if (typeof val === 'number') {
+          prices[key] = { price: val, change: 0, changePercent: 0 };
+        } else {
+          prices[key] = {
+            price: Number(val.price) || 0,
+            change: Number(val.change) || 0,
+            changePercent: Number(val.changePercent) || 0
+          };
+        }
+      });
+    }
+
+    return {
+      prices: prices,
+      exchangeRate: typeof result.exchangeRate === 'number' ? result.exchangeRate : 0
+    };
+
+  } catch (error) {
+    console.error("Price Fetch Error:", error);
+    throw new Error("無法取得股價，請檢查 API Key 或稍後再試。");
+  }
+};
+
+// 新增：查詢歷史年底股價
+export const fetchHistoricalYearEndData = async (
+  year: number, 
+  tickers: string[]
+): Promise<{ prices: Record<string, number>, exchangeRate: number }> => {
+  try {
+    const ai = getAiClient();
+    const queryList = tickers.join(', ');
+    const dateQuery = `last trading day of December ${year}`;
+    
+    const prompt = `
+      Task:
+      1. Find the closing stock price for these tickers on the ${dateQuery}: ${queryList}.
+      2. Find the USD to TWD exchange rate on ${dateQuery}.
+      
+      Rules:
+      1. For Taiwan stocks (TPE:XXXX), price in TWD.
+      2. For US stocks, price in USD.
+      3. Use Google Search to find historical data.
+      4. Return ONLY JSON. Keys: "prices" (object ticker->number), "exchangeRate" (number).
+      5. If exact date data missing, use the closest available date in that December.
+      
+      Example JSON:
+      {
+        "prices": { "AAPL": 42.5, "TPE:2330": 220 },
+        "exchangeRate": 29.5
+      }
+    `;
+
+    const response = await ai.models.generateContent({
+      model: 'gemini-2.5-flash',
+      contents: prompt,
+      config: {
+        tools: [{ googleSearch: {} }],
+      },
+    });
+
+    const text = response.text || "{}";
+    const jsonStr = text.replace(/```json|```/g, '').trim();
+    const result = JSON.parse(jsonStr);
+
+    return {
+      prices: result.prices || {},
+      exchangeRate: Number(result.exchangeRate) || 30
+    };
+  } catch (error) {
+    console.error(`Historical Fetch Error ${year}:`, error);
+    return { prices: {}, exchangeRate: 30 };
+  }
+};
 
