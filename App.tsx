@@ -377,7 +377,9 @@ const App: React.FC = () => {
   };
 
   // --- Calculations ---
-  const holdings = useMemo(() => calculateHoldings(transactions, currentPrices, priceDetails), [transactions, currentPrices, priceDetails]);
+  // 1. Calculate Base Holdings (Prices, Values, but Weight is 0)
+  const baseHoldings = useMemo(() => calculateHoldings(transactions, currentPrices, priceDetails), [transactions, currentPrices, priceDetails]);
+  
   const computedAccounts = useMemo(() => calculateAccountBalances(accounts, cashFlows, transactions), [accounts, cashFlows, transactions]);
 
   const summary = useMemo<PortfolioSummary>(() => {
@@ -420,7 +422,7 @@ const App: React.FC = () => {
        }
     });
 
-    const stockValueTWD = holdings.reduce((sum, h) => sum + (h.market === Market.US ? h.currentValue * exchangeRate : h.currentValue), 0);
+    const stockValueTWD = baseHoldings.reduce((sum, h) => sum + (h.market === Market.US ? h.currentValue * exchangeRate : h.currentValue), 0);
     const cashValueTWD = computedAccounts.reduce((sum, a) => sum + (a.currency === Currency.USD ? a.balance * exchangeRate : a.balance), 0);
     const totalValueTWD = stockValueTWD;
     const totalAssets = totalValueTWD + cashValueTWD;
@@ -453,7 +455,19 @@ const App: React.FC = () => {
         accumulatedStockDividendsTWD,
         avgExchangeRate
     };
-  }, [holdings, computedAccounts, cashFlows, exchangeRate, accounts, transactions]);
+  }, [baseHoldings, computedAccounts, cashFlows, exchangeRate, accounts, transactions]);
+
+  // Step 4: Final Holdings with Weights
+  const holdings = useMemo(() => {
+    const totalAssets = summary.totalValueTWD + summary.cashBalanceTWD;
+    return baseHoldings.map(h => {
+        const valTwd = h.market === Market.US ? h.currentValue * exchangeRate : h.currentValue;
+        return {
+            ...h,
+            weight: totalAssets > 0 ? (valTwd / totalAssets) * 100 : 0
+        };
+    });
+  }, [baseHoldings, summary, exchangeRate]);
 
   const chartData = useMemo(() => generateAdvancedChartData(transactions, cashFlows, accounts, summary.totalValueTWD + summary.cashBalanceTWD, exchangeRate, historicalData), [transactions, cashFlows, accounts, summary, exchangeRate, historicalData]);
   const assetAllocation = useMemo(() => calculateAssetAllocation(holdings, summary.cashBalanceTWD, exchangeRate), [holdings, summary, exchangeRate]);
