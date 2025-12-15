@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Account, CashFlow, CashFlowType, Currency } from '../types';
 import { v4 as uuidv4 } from 'uuid';
 import { formatCurrency } from '../utils/calculations';
@@ -25,17 +25,40 @@ const FundManager: React.FC<Props> = ({ accounts, cashFlows, onAdd, onBatchAdd, 
   const [note, setNote] = useState('');
   const [isBatchOpen, setIsBatchOpen] = useState(false);
 
+  // 當帳戶列表變更或初始化時，確保 accountId 有效
+  useEffect(() => {
+    if (accounts.length > 0 && !accounts.find(a => a.id === accountId)) {
+      setAccountId(accounts[0].id);
+    }
+  }, [accounts, accountId]);
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!accountId) return alert("請先建立帳戶");
 
     const numAmount = parseFloat(amount);
     const numFee = fee ? parseFloat(fee) : 0;
-    const numRate = exchangeRate ? parseFloat(exchangeRate) : undefined;
     
+    // Determine Rate logic based on visibility
+    let numRate: number | undefined = undefined;
+    
+    // Logic to calculate final rate and TWD amount
+    const account = accounts.find(a => a.id === accountId);
+    const targetAccount = accounts.find(a => a.id === targetAccountId);
+    
+    const isTransfer = type === CashFlowType.TRANSFER;
+    const isSameCurrency = isTransfer && account && targetAccount && account.currency === targetAccount.currency;
+    
+    if (showExchangeRateInput) {
+       numRate = exchangeRate ? parseFloat(exchangeRate) : undefined;
+    } else if (isSameCurrency) {
+       numRate = 1; // Same currency transfer implies rate 1
+    } else if (account?.currency === Currency.TWD && !isTransfer) {
+       numRate = 1; // TWD Deposit/Withdraw implies rate 1
+    }
+
     // Determine amountTWD
     let calculatedTWD: number | undefined = undefined;
-    const account = accounts.find(a => a.id === accountId);
     
     if (account?.currency === Currency.USD && numRate) {
        // Logic: 
@@ -46,8 +69,14 @@ const FundManager: React.FC<Props> = ({ accounts, cashFlows, onAdd, onBatchAdd, 
        } else if (type === CashFlowType.WITHDRAW) {
           calculatedTWD = (numAmount * numRate) - numFee;
        } else {
+          // Transfer from USD -> TWD or USD -> USD
           calculatedTWD = (numAmount * numRate);
        }
+    } else if (account?.currency === Currency.TWD) {
+        // TWD Logic
+        if (type === CashFlowType.DEPOSIT) calculatedTWD = numAmount + numFee;
+        else if (type === CashFlowType.WITHDRAW) calculatedTWD = numAmount - numFee;
+        else calculatedTWD = numAmount;
     }
     
     onAdd({
@@ -66,6 +95,7 @@ const FundManager: React.FC<Props> = ({ accounts, cashFlows, onAdd, onBatchAdd, 
     setAmount('');
     setFee('');
     setNote('');
+    // Do not reset exchange rate, convenient for multiple entries
   };
 
   const getTypeName = (t: CashFlowType) => {
@@ -81,13 +111,16 @@ const FundManager: React.FC<Props> = ({ accounts, cashFlows, onAdd, onBatchAdd, 
   const selectedAccount = accounts.find(a => a.id === accountId);
   const targetAccount = accounts.find(a => a.id === targetAccountId);
   
-  const isUSDSource = selectedAccount?.currency === Currency.USD;
-  const isUSDTarget = targetAccount?.currency === Currency.USD;
-  
-  // Show exchange rate if dealing with USD involved in conversion:
-  // 1. Source is USD (Deposit/Withdraw/Transfer)
-  // 2. Source is TWD (not USD) AND Target is USD AND Type is Transfer
-  const showExchangeRateInput = isUSDSource || (type === CashFlowType.TRANSFER && isUSDTarget && !isUSDSource);
+  // Logic to determine if Exchange Rate Input should be shown
+  const isTransfer = type === CashFlowType.TRANSFER;
+  const isCrossCurrencyTransfer = isTransfer && selectedAccount && targetAccount && selectedAccount.currency !== targetAccount.currency;
+  const isSameCurrencyTransfer = isTransfer && selectedAccount && targetAccount && selectedAccount.currency === targetAccount.currency;
+
+  const showExchangeRateInput = 
+    // Case 1: USD Account doing non-transfer operations (Need rate to calculate TWD cost)
+    (!isTransfer && selectedAccount?.currency === Currency.USD) || 
+    // Case 2: Transfer between DIFFERENT currencies
+    (isTransfer && targetAccountId !== '' && isCrossCurrencyTransfer);
 
   return (
     <div className="space-y-6">
@@ -134,35 +167,49 @@ const FundManager: React.FC<Props> = ({ accounts, cashFlows, onAdd, onBatchAdd, 
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 bg-slate-50 p-4 rounded border border-slate-100">
-             {/* Dynamic Fields based on Account Type */}
-             {showExchangeRateInput ? (
-               <>
-                 <div>
-                   <label className="block text-sm font-medium text-slate-700">匯率 (TWD/USD)</label>
-                   <input type="number" step="0.0001" placeholder="換匯匯率" value={exchangeRate} onChange={e => setExchangeRate(e.target.value)} className="mt-1 w-full border border-slate-300 rounded p-2"/>
-                 </div>
-                 <div>
-                   <label className="block text-sm font-medium text-slate-700">手續費 (TWD) <span className="text-xs text-slate-400 font-normal">匯款/電匯費</span></label>
-                   <input type="number" step="1" placeholder="例如: 900" value={fee} onChange={e => setFee(e.target.value)} className="mt-1 w-full border border-slate-300 rounded p-2"/>
-                 </div>
-               </>
-             ) : (
-                <div>
-                   <label className="block text-sm font-medium text-slate-700">手續費 <span className="text-xs text-slate-400 font-normal">(選填)</span></label>
-                   <input type="number" step="1" placeholder="0" value={fee} onChange={e => setFee(e.target.value)} className="mt-1 w-full border border-slate-300 rounded p-2"/>
-                </div>
-             )}
-             
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 bg-slate-50 p-4 rounded border border-slate-100 items-end">
              {type === CashFlowType.TRANSFER && (
                  <div>
                    <label className="block text-sm font-medium text-slate-700">轉入目標帳戶</label>
-                   <select required value={targetAccountId} onChange={e => setTargetAccountId(e.target.value)} className="mt-1 w-full border border-slate-300 rounded p-2">
+                   <select required value={targetAccountId} onChange={e => setTargetAccountId(e.target.value)} className="mt-1 w-full border border-slate-300 rounded p-2 bg-white">
                       <option value="">選擇帳戶...</option>
                       {accounts.filter(a => a.id !== accountId).map(a => <option key={a.id} value={a.id}>{a.name} ({a.currency})</option>)}
                    </select>
                  </div>
              )}
+
+             {/* Dynamic Fields based on Account Type & Action */}
+             {showExchangeRateInput ? (
+               <div>
+                 <label className="block text-sm font-medium text-slate-700">
+                    匯率 (TWD/USD) 
+                    {isCrossCurrencyTransfer && <span className="text-xs text-blue-600 ml-1">不同幣別轉帳</span>}
+                    {!isTransfer && selectedAccount?.currency === Currency.USD && <span className="text-xs text-green-600 ml-1">美金換算</span>}
+                 </label>
+                 <input 
+                   type="number" 
+                   step="0.0001" 
+                   placeholder={currentExchangeRate.toString()} 
+                   value={exchangeRate} 
+                   onChange={e => setExchangeRate(e.target.value)} 
+                   className="mt-1 w-full border border-slate-300 rounded p-2"
+                   required
+                 />
+               </div>
+             ) : (
+                isSameCurrencyTransfer && (
+                    <div className="pb-2">
+                        <span className="text-sm font-bold text-slate-500 bg-slate-200 px-3 py-1.5 rounded-full">
+                           同幣別轉帳 (匯率 1.0)
+                        </span>
+                    </div>
+                )
+             )}
+
+             <div>
+                <label className="block text-sm font-medium text-slate-700">手續費 (TWD) <span className="text-xs text-slate-400 font-normal">匯費/轉帳費</span></label>
+                <input type="number" step="1" placeholder="0" value={fee} onChange={e => setFee(e.target.value)} className="mt-1 w-full border border-slate-300 rounded p-2"/>
+             </div>
           </div>
 
           <div>
@@ -171,7 +218,7 @@ const FundManager: React.FC<Props> = ({ accounts, cashFlows, onAdd, onBatchAdd, 
           </div>
 
           <div className="pt-2">
-            <button type="submit" className="bg-accent text-white px-6 py-2 rounded hover:bg-blue-600">確認執行</button>
+            <button type="submit" className="bg-slate-900 text-white px-6 py-2 rounded hover:bg-slate-800 shadow-lg shadow-slate-900/20">確認執行</button>
           </div>
         </form>
       </div>
@@ -292,3 +339,4 @@ const FundManager: React.FC<Props> = ({ accounts, cashFlows, onAdd, onBatchAdd, 
 };
 
 export default FundManager;
+
