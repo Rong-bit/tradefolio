@@ -336,8 +336,8 @@ const App: React.FC = () => {
     const holdingKeys = holdings.map(h => ({ market: h.market, ticker: h.ticker, key: `${h.market}-${h.ticker}` }));
     const queryList: string[] = Array.from(new Set(holdingKeys.map(h => {
        let t = h.ticker;
-       if (h.market === Market.TW && !t.includes('TPE:') && !t.includes('TW') && !/^\d{4}$/.test(t)) t = `TPE:${t}`;
-       if (h.market === Market.TW && /^\d{4}$/.test(t)) t = `TPE:${t}`;
+       if (h.market === Market.TW && !t.includes('TPE:') && !t.includes('TW') && !t.match(/^\d{4}$/)) t = `TPE:${t}`;
+       if (h.market === Market.TW && t.match(/^\d{4}$/)) t = `TPE:${t}`;
        return t;
     })));
     if (queryList.length === 0) return;
@@ -382,14 +382,41 @@ const App: React.FC = () => {
 
   const summary = useMemo<PortfolioSummary>(() => {
     let netInvestedTWD = 0;
+    let totalUsdInflow = 0;
+    let totalTwdCostForUsd = 0;
+
     cashFlows.forEach(cf => {
        const account = accounts.find(a => a.id === cf.accountId);
+       
+       // 1. Calculate Net Invested (Cost)
        if(cf.type === CashFlowType.DEPOSIT) {
            const rate = (cf.exchangeRate || (account?.currency === Currency.USD ? exchangeRate : 1));
            netInvestedTWD += (cf.amountTWD || cf.amount * rate);
        } else if (cf.type === CashFlowType.WITHDRAW) {
            const rate = (cf.exchangeRate || (account?.currency === Currency.USD ? exchangeRate : 1));
            netInvestedTWD -= (cf.amountTWD || cf.amount * rate);
+       }
+
+       // 2. Calculate Avg Exchange Rate (Accumulate USD Inflows)
+       if (cf.type === CashFlowType.DEPOSIT && account?.currency === Currency.USD) {
+           totalUsdInflow += cf.amount;
+           const cost = cf.amountTWD || (cf.amount * (cf.exchangeRate || exchangeRate));
+           totalTwdCostForUsd += cost;
+       }
+       
+       if (cf.type === CashFlowType.TRANSFER && cf.targetAccountId) {
+           const targetAccount = accounts.find(a => a.id === cf.targetAccountId);
+           if (account?.currency === Currency.TWD && targetAccount?.currency === Currency.USD) {
+               const costTwd = cf.amount;
+               let usdReceived = 0;
+               if (cf.exchangeRate && cf.exchangeRate > 0) {
+                   usdReceived = cf.amount / cf.exchangeRate;
+               } else {
+                   usdReceived = cf.amount / exchangeRate;
+               }
+               totalUsdInflow += usdReceived;
+               totalTwdCostForUsd += costTwd;
+           }
        }
     });
 
@@ -406,6 +433,13 @@ const App: React.FC = () => {
         return sum + (t.market === Market.US ? amt * exchangeRate : amt);
     }, 0);
 
+    const accumulatedStockDividendsTWD = transactions.filter(t => t.type === TransactionType.DIVIDEND).reduce((sum, t) => {
+        const amt = t.amount || (t.price * t.quantity);
+        return sum + (t.market === Market.US ? amt * exchangeRate : amt);
+    }, 0);
+
+    const avgExchangeRate = totalUsdInflow > 0 ? totalTwdCostForUsd / totalUsdInflow : 0;
+
     return {
         totalCostTWD: 0,
         totalValueTWD,
@@ -416,8 +450,8 @@ const App: React.FC = () => {
         annualizedReturn,
         exchangeRateUsdToTwd: exchangeRate,
         accumulatedCashDividendsTWD,
-        accumulatedStockDividendsTWD: 0,
-        avgExchangeRate: 0
+        accumulatedStockDividendsTWD,
+        avgExchangeRate
     };
   }, [holdings, computedAccounts, cashFlows, exchangeRate, accounts, transactions]);
 
