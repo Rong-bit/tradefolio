@@ -375,7 +375,15 @@ const App: React.FC = () => {
       
       setCurrentPrices(prev => ({ ...prev, ...newPrices }));
       setPriceDetails(prev => ({ ...prev, ...newDetails }));
-      showAlert(`成功更新 ${Object.keys(newPrices).length} 筆股價`, "更新完成", "success");
+
+      // 自動更新匯率邏輯
+      let msg = `成功更新 ${Object.keys(newPrices).length} 筆股價`;
+      if (result.exchangeRate && result.exchangeRate > 0) {
+        setExchangeRate(result.exchangeRate);
+        msg += `，並同步更新匯率為 ${result.exchangeRate}`;
+      }
+
+      showAlert(msg, "更新完成", "success");
     } catch (error) {
       console.error(error);
       showAlert("自動更新失敗", "錯誤", "error");
