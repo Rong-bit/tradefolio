@@ -228,7 +228,7 @@ const Dashboard: React.FC<Props> = ({
           <div className="w-full overflow-x-auto">
             <div className="min-w-[800px] h-[450px]">
               {isMounted && chartData.length > 0 ? (
-                <ResponsiveContainer width="100%" height="100%">
+                <ResponsiveContainer width="100%" height={400}>
                   <ComposedChart data={chartData} margin={{ top: 20, right: 20, left: 20, bottom: 20 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
                     <XAxis 
