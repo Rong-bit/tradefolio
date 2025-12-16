@@ -51,7 +51,11 @@ export const calculateHoldings = (
      const h = map.get(key)!;
      
      if (tx.type === TransactionType.BUY || tx.type === TransactionType.TRANSFER_IN || tx.type === TransactionType.DIVIDEND) {
-       const txCost = tx.amount !== undefined ? tx.amount : (tx.price * tx.quantity + (tx.fees || 0));
+       // 台股邏輯：股價 * 股數 無條件捨去 + 手續費
+       let baseVal = tx.price * tx.quantity;
+       if (tx.market === Market.TW) baseVal = Math.floor(baseVal);
+
+       const txCost = tx.amount !== undefined ? tx.amount : (baseVal + (tx.fees || 0));
        const newTotalCost = h.totalCost + txCost;
        const newQty = h.quantity + tx.quantity;
        h.avgCost = newQty > 0 ? newTotalCost / newQty : 0;
@@ -72,7 +76,10 @@ export const calculateHoldings = (
          h.totalCost -= costOfSold;
          h.quantity -= tx.quantity;
          
-         const proceeds = tx.amount !== undefined ? tx.amount : ((tx.price * tx.quantity) - (tx.fees || 0));
+         let baseVal = tx.price * tx.quantity;
+         if (tx.market === Market.TW) baseVal = Math.floor(baseVal);
+
+         const proceeds = tx.amount !== undefined ? tx.amount : (baseVal - (tx.fees || 0));
          const flowDate = new Date(tx.date).getTime();
          
          if (tx.type === TransactionType.SELL) {
@@ -147,12 +154,15 @@ export const calculateAccountBalances = (accounts: Account[], cashFlows: CashFlo
     });
 
     transactions.forEach(tx => {
-       const cost = tx.amount !== undefined ? tx.amount : (tx.price * tx.quantity + (tx.fees || 0));
+       let baseVal = tx.price * tx.quantity;
+       if (tx.market === Market.TW) baseVal = Math.floor(baseVal);
+
+       const cost = tx.amount !== undefined ? tx.amount : (baseVal + (tx.fees || 0));
        
        if (tx.type === TransactionType.BUY) {
          balMap[tx.accountId] = (balMap[tx.accountId] || 0) - cost;
        } else if (tx.type === TransactionType.SELL) {
-         const proceeds = tx.amount !== undefined ? tx.amount : ((tx.price * tx.quantity) - (tx.fees || 0));
+         const proceeds = tx.amount !== undefined ? tx.amount : (baseVal - (tx.fees || 0));
          balMap[tx.accountId] = (balMap[tx.accountId] || 0) + proceeds;
        } else if (tx.type === TransactionType.CASH_DIVIDEND) {
          const divAmt = tx.amount !== undefined ? tx.amount : ((tx.price * tx.quantity) - (tx.fees || 0));
@@ -208,13 +218,16 @@ export const getPortfolioStateAtDate = (
         const key = `${tx.market}-${tx.ticker}`;
         
         // Update Cash from Tx cost logic (simplified here as we only need cashBalances roughly correct, but holdings exact)
-        const cost = tx.amount !== undefined ? tx.amount : (tx.price * tx.quantity + (tx.fees || 0));
+        let baseVal = tx.price * tx.quantity;
+        if (tx.market === Market.TW) baseVal = Math.floor(baseVal);
+
+        const cost = tx.amount !== undefined ? tx.amount : (baseVal + (tx.fees || 0));
         
         if (tx.type === TransactionType.BUY) {
             cashBalances[tx.accountId] = (cashBalances[tx.accountId] || 0) - cost;
             holdings[key] = (holdings[key] || 0) + tx.quantity;
         } else if (tx.type === TransactionType.SELL) {
-            const proceeds = tx.amount !== undefined ? tx.amount : ((tx.price * tx.quantity) - (tx.fees || 0));
+            const proceeds = tx.amount !== undefined ? tx.amount : (baseVal - (tx.fees || 0));
             cashBalances[tx.accountId] = (cashBalances[tx.accountId] || 0) + proceeds;
             holdings[key] = (holdings[key] || 0) - tx.quantity;
         } else if (tx.type === TransactionType.CASH_DIVIDEND) {
@@ -277,7 +290,10 @@ export const generateAdvancedChartData = (
 
     txsInYear.forEach(tx => {
         if (tx.type === TransactionType.TRANSFER_IN || tx.type === TransactionType.TRANSFER_OUT) {
-             const val = tx.amount !== undefined ? tx.amount : (tx.price * tx.quantity);
+             let baseVal = tx.price * tx.quantity;
+             if (tx.market === Market.TW) baseVal = Math.floor(baseVal);
+             
+             const val = tx.amount !== undefined ? tx.amount : baseVal;
              let valTWD = 0;
              if (tx.market === Market.US) valTWD = val * exchangeRate;
              else valTWD = val;
@@ -524,7 +540,10 @@ export const calculateAccountPerformance = (
        if (tx.accountId !== acc.id) return;
        
        if (tx.type === TransactionType.TRANSFER_IN || tx.type === TransactionType.TRANSFER_OUT) {
-          const val = tx.amount !== undefined ? tx.amount : (tx.price * tx.quantity);
+          let baseVal = tx.price * tx.quantity;
+          if (tx.market === Market.TW) baseVal = Math.floor(baseVal);
+          
+          const val = tx.amount !== undefined ? tx.amount : baseVal;
           let valTWD = 0;
           
           if (tx.market === Market.US) {
