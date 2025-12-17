@@ -71,6 +71,7 @@ const BatchUpdateMarketModal: React.FC<Props> = ({ transactions, onUpdate, onClo
               <option value={Market.US}>美股 (US)</option>
               <option value={Market.TW}>台股 (TW)</option>
               <option value={Market.UK}>英國股 (UK)</option>
+              <option value={Market.JP}>日本股 (JP)</option>
             </select>
           </div>
 
@@ -83,7 +84,12 @@ const BatchUpdateMarketModal: React.FC<Props> = ({ transactions, onUpdate, onClo
                 </span>
                 {matchingTransactions.length > 0 && (
                   <span className="block mt-2 text-xs text-slate-500">
-                    將把這些記錄的市場設置更新為：<strong>{newMarket === Market.US ? '美股 (US)' : newMarket === Market.TW ? '台股 (TW)' : '英國股 (UK)'}</strong>
+                    將把這些記錄的市場設置更新為：<strong>{
+                      newMarket === Market.US ? '美股 (US)' : 
+                      newMarket === Market.TW ? '台股 (TW)' : 
+                      newMarket === Market.UK ? '英國股 (UK)' : 
+                      '日本股 (JP)'
+                    }</strong>
                   </span>
                 )}
               </p>
