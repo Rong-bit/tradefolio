@@ -328,7 +328,70 @@ export const fetchCurrentPrices = async (
 };
 
 /**
+ * 取得單一股票的歷史股價（年底收盤價）
+ * @param symbol Yahoo Finance 格式的代號
+ * @param startDate 開始日期（Unix 時間戳）
+ * @param endDate 結束日期（Unix 時間戳）
+ * @returns 價格或 null
+ */
+const fetchSingleHistoricalPrice = async (
+  symbol: string,
+  startDate: number,
+  endDate: number
+): Promise<number | null> => {
+  try {
+    const baseUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?period1=${startDate}&period2=${endDate}&interval=1d`;
+    console.log(`查詢 URL: ${baseUrl.substring(0, 100)}...`);
+    
+    const response = await fetchWithProxy(baseUrl);
+    if (!response || !response.ok) {
+      console.warn(`HTTP 錯誤: ${symbol} - ${response?.status || '無回應'}`);
+      return null;
+    }
+
+    const data = await response.json();
+    if (!data.chart || !data.chart.result || data.chart.result.length === 0) {
+      console.warn(`Yahoo Finance 返回空數據: ${symbol}`);
+      return null;
+    }
+
+    const result = data.chart.result[0];
+    
+    // 檢查是否有錯誤訊息
+    if (result.error) {
+      console.warn(`Yahoo Finance API 錯誤: ${symbol} -`, result.error);
+      return null;
+    }
+    
+    const timestamps = result.timestamp || [];
+    const closes = result.indicators?.quote?.[0]?.close || [];
+    
+    console.log(`取得 ${symbol} 數據：${timestamps.length} 個時間點，${closes.filter((c: any) => c != null).length} 個有效價格`);
+
+    // 找到最接近年底的收盤價
+    if (timestamps.length === 0 || closes.length === 0) {
+      return null;
+    }
+
+    // 找到最後一個有效價格
+    let lastPrice = null;
+    for (let i = closes.length - 1; i >= 0; i--) {
+      if (closes[i] != null) {
+        lastPrice = closes[i];
+        break;
+      }
+    }
+
+    return lastPrice;
+  } catch (error) {
+    console.error(`取得 ${symbol} 歷史資料時發生錯誤:`, error);
+    return null;
+  }
+};
+
+/**
  * 取得歷史股價資料（年底收盤價）
+ * 先查詢台股和美股，如果還有未找到的，再查詢英股
  * @param year 年份
  * @param tickers 股票代號陣列
  * @param markets 可選的市場類型陣列
@@ -343,83 +406,96 @@ export const fetchHistoricalYearEndData = async (
     const endDate = Math.floor(new Date(`${year}-12-31`).getTime() / 1000);
     const startDate = Math.floor(new Date(`${year}-12-01`).getTime() / 1000);
 
-    const yahooSymbols = tickers.map((ticker, index) => {
-      const market = markets?.[index];
-      const converted = convertToYahooSymbol(ticker, market);
-      console.log(`歷史股價查詢：${ticker} (市場: ${market}) -> ${converted}`);
-      return converted;
-    });
+    console.log(`開始查詢 ${year} 年歷史股價，共 ${tickers.length} 個股票代號`);
 
-    const pricePromises = yahooSymbols.map(async (symbol, index) => {
-      try {
-        const baseUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?period1=${startDate}&period2=${endDate}&interval=1d`;
-        console.log(`查詢 URL: ${baseUrl.substring(0, 100)}...`);
-        
-        const response = await fetchWithProxy(baseUrl);
-        if (!response || !response.ok) {
-          console.warn(`HTTP 錯誤: ${symbol} - ${response?.status || '無回應'}`);
-          return null;
-        }
+    // 建立股票資訊陣列，包含原始 ticker、市場類型和索引
+    const stockInfos = tickers.map((ticker, index) => ({
+      originalTicker: ticker,
+      market: markets?.[index],
+      index
+    }));
 
-        const data = await response.json();
-        if (!data.chart || !data.chart.result || data.chart.result.length === 0) {
-          console.warn(`Yahoo Finance 返回空數據: ${symbol}`);
-          return null;
-        }
-
-        const result = data.chart.result[0];
-        
-        // 檢查是否有錯誤訊息
-        if (result.error) {
-          console.warn(`Yahoo Finance API 錯誤: ${symbol} -`, result.error);
-          return null;
-        }
-        
-        const timestamps = result.timestamp || [];
-        const closes = result.indicators?.quote?.[0]?.close || [];
-        
-        console.log(`取得 ${symbol} 數據：${timestamps.length} 個時間點，${closes.filter((c: any) => c != null).length} 個有效價格`);
-
-        // 找到最接近年底的收盤價
-        if (timestamps.length === 0 || closes.length === 0) {
-          return null;
-        }
-
-        // 找到最後一個有效價格
-        let lastPrice = null;
-        for (let i = closes.length - 1; i >= 0; i--) {
-          if (closes[i] != null) {
-            lastPrice = closes[i];
-            break;
-          }
-        }
-
-        return lastPrice;
-      } catch (error) {
-        console.error(`取得 ${symbol} 歷史資料時發生錯誤:`, error);
-        return null;
-      }
-    });
-
-    const historicalPrices = await Promise.all(pricePromises);
-
-    const result: Record<string, number> = {};
-    tickers.forEach((originalTicker, index) => {
-      const price = historicalPrices[index];
-      if (price != null && price > 0) {
-        result[originalTicker] = price;
-        console.log(`儲存歷史股價: ${originalTicker} = ${price}`);
-        // 同時支援不帶 TPE: 前綴的 key（用於向後兼容）
-        const cleanTicker = originalTicker.replace(/^TPE:/i, '');
-        if (cleanTicker !== originalTicker) {
-          result[cleanTicker] = price;
-          console.log(`同時儲存: ${cleanTicker} = ${price}`);
-        }
-      } else {
-        console.warn(`無法取得 ${originalTicker} (${yahooSymbols[index]}) 的歷史股價，價格: ${price}`);
-      }
-    });
+    // 第一步：先查詢台股和美股
+    const twAndUsStocks = stockInfos.filter(info => 
+      info.market === 'TW' || info.market === 'US' || !info.market
+    );
     
+    const remainingStocks: typeof stockInfos = [];
+    const result: Record<string, number> = {};
+
+    if (twAndUsStocks.length > 0) {
+      console.log(`第一階段：查詢 ${twAndUsStocks.length} 個台股和美股`);
+      
+      const twAndUsPromises = twAndUsStocks.map(async (info) => {
+        const yahooSymbol = convertToYahooSymbol(info.originalTicker, info.market);
+        console.log(`歷史股價查詢：${info.originalTicker} (市場: ${info.market}) -> ${yahooSymbol}`);
+        const price = await fetchSingleHistoricalPrice(yahooSymbol, startDate, endDate);
+        return { info, price };
+      });
+
+      const twAndUsResults = await Promise.all(twAndUsPromises);
+
+      // 處理查詢結果
+      twAndUsResults.forEach(({ info, price }) => {
+        if (price != null && price > 0) {
+          result[info.originalTicker] = price;
+          console.log(`✓ 儲存歷史股價: ${info.originalTicker} = ${price}`);
+          // 同時支援不帶 TPE: 前綴的 key（用於向後兼容）
+          const cleanTicker = info.originalTicker.replace(/^TPE:/i, '');
+          if (cleanTicker !== info.originalTicker) {
+            result[cleanTicker] = price;
+            console.log(`  同時儲存: ${cleanTicker} = ${price}`);
+          }
+        } else {
+          console.warn(`✗ 無法取得 ${info.originalTicker} 的歷史股價`);
+          remainingStocks.push(info);
+        }
+      });
+    }
+
+    // 第二步：如果還有未找到的股票，且原本就是英股或未指定市場，嘗試查詢英股
+    const ukStocks = stockInfos.filter(info => 
+      info.market === 'UK' || 
+      (!info.market && !result[info.originalTicker] && !result[info.originalTicker.replace(/^TPE:/i, '')])
+    );
+
+    // 合併未找到的台股/美股和英股
+    const finalRemainingStocks = [
+      ...remainingStocks.filter(info => info.market !== 'UK'),
+      ...ukStocks
+    ];
+
+    if (finalRemainingStocks.length > 0) {
+      console.log(`第二階段：查詢 ${finalRemainingStocks.length} 個剩餘股票（嘗試英股格式）`);
+      
+      const ukPromises = finalRemainingStocks.map(async (info) => {
+        // 嘗試以英股格式查詢
+        const yahooSymbol = convertToYahooSymbol(info.originalTicker, 'UK');
+        console.log(`歷史股價查詢（英股格式）：${info.originalTicker} -> ${yahooSymbol}`);
+        const price = await fetchSingleHistoricalPrice(yahooSymbol, startDate, endDate);
+        return { info, price };
+      });
+
+      const ukResults = await Promise.all(ukPromises);
+
+      // 處理查詢結果
+      ukResults.forEach(({ info, price }) => {
+        if (price != null && price > 0) {
+          result[info.originalTicker] = price;
+          console.log(`✓ 儲存歷史股價（英股）: ${info.originalTicker} = ${price}`);
+          // 同時支援不帶 TPE: 前綴的 key（用於向後兼容）
+          const cleanTicker = info.originalTicker.replace(/^TPE:/i, '');
+          if (cleanTicker !== info.originalTicker) {
+            result[cleanTicker] = price;
+            console.log(`  同時儲存: ${cleanTicker} = ${price}`);
+          }
+        } else {
+          console.warn(`✗ 無法取得 ${info.originalTicker} 的歷史股價（英股格式也失敗）`);
+        }
+      });
+    }
+    
+    console.log(`歷史股價查詢完成，成功取得 ${Object.keys(result).length} 個價格`);
     console.log(`歷史股價查詢結果:`, result);
 
     // 取得歷史匯率（查詢指定年份的歷史匯率）
@@ -434,5 +510,6 @@ export const fetchHistoricalYearEndData = async (
     return { prices: {}, exchangeRate: 31.5 };
   }
 };
+
 
 
