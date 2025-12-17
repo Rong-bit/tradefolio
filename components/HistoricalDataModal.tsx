@@ -161,16 +161,25 @@ const HistoricalDataModal: React.FC<Props> = ({
 
               // 合併價格數據，確保兩種格式的 key 都能正確對應
               const mergedPrices = { ...prevData.prices };
+              console.log(`合併前的價格數據:`, prevData.prices);
+              console.log(`API 返回的價格數據:`, result.prices);
+              
               Object.entries(result.prices).forEach(([key, price]) => {
                   mergedPrices[key] = price;
+                  console.log(`儲存價格: ${key} = ${price}`);
                   // 如果是 TPE: 格式，也同時儲存不帶前綴的版本
                   if (key.startsWith('TPE:')) {
-                      mergedPrices[key.replace(/^TPE:/i, '')] = price;
+                      const cleanKey = key.replace(/^TPE:/i, '');
+                      mergedPrices[cleanKey] = price;
+                      console.log(`同時儲存: ${cleanKey} = ${price}`);
                   } else if (key.match(/^\d{4}$/)) {
                       // 如果是純數字，也同時儲存 TPE: 前綴版本
                       mergedPrices[`TPE:${key}`] = price;
+                      console.log(`同時儲存: TPE:${key} = ${price}`);
                   }
               });
+              
+              console.log(`合併後的價格數據:`, mergedPrices);
 
               return {
                   ...prev,
