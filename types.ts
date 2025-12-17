@@ -1,7 +1,8 @@
 
 export enum Market {
   US = 'US',
-  TW = 'TW'
+  TW = 'TW',
+  UK = 'UK'
 }
 
 export enum Currency {
@@ -139,3 +140,4 @@ export interface HistoricalData {
     exchangeRate: number; // USD to TWD on Dec 31
   };
 }
+
