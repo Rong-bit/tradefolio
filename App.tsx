@@ -379,7 +379,7 @@ const App: React.FC = () => {
     });
     
     const queryList: string[] = Array.from(tickerMarketMap.keys());
-    const marketsList = queryList.map(t => tickerMarketMap.get(t)!);
+    const marketsList: ('US' | 'TW' | 'UK' | 'JP')[] = queryList.map(t => tickerMarketMap.get(t)!);
     
     if (queryList.length === 0) return;
 
