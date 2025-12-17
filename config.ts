@@ -9,5 +9,5 @@ export const SYSTEM_ACCESS_CODE = '888888';
 export const GLOBAL_AUTHORIZED_USERS = [
   // 您可以在此加入其他使用者的 Email
    'hcj382000@gmail.com',
-  // 'family@example.com',
+   'chenyu1697@gmail.com',
 ];
