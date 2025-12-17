@@ -342,11 +342,18 @@ export const generateAdvancedChartData = (
           const { holdings, cashBalances } = getPortfolioStateAtDate(yearEndDate, transactions, cashFlows, accounts);
           
           let stockValueTWD = 0;
+          let hasMissingPrices = false;
+          
           Object.entries(holdings).forEach(([key, qty]) => {
               if (qty > 0.000001) {
                   const [market, ticker] = key.split('-');
                   // Try find ticker in historical prices. 
                   let price = histPrices[ticker] || histPrices[`TPE:${ticker}`] || 0;
+                  
+                  // 檢查是否有缺失的價格
+                  if (price === 0) {
+                      hasMissingPrices = true;
+                  }
                   
                   if (market === Market.US) {
                       stockValueTWD += qty * price * histRate;
@@ -367,7 +374,19 @@ export const generateAdvancedChartData = (
           });
 
           totalAssets = stockValueTWD + cashValueTWD;
-          isRealData = true;
+          
+          // 如果有缺失的價格導致計算不準確，回退到插值計算
+          if (hasMissingPrices && totalAssets < cost) {
+              // 使用插值計算作為備選方案
+              const totalYears = endYear - startYear + 1;
+              const currentYearIndex = y - startYear + 1;
+              const progress = currentYearIndex / totalYears;
+              const totalProfit = currentTotalValueTWD - cumulativeNetInvestedTWD;
+              totalAssets = cost + (totalProfit * progress);
+              isRealData = false;
+          } else {
+              isRealData = true;
+          }
 
        } else {
           // NO historical data: Fallback to linear interpolation
