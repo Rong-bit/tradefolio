@@ -110,11 +110,18 @@ const fetchSingleStockPrice = async (symbol: string): Promise<PriceData | null> 
     const data = await response.json();
     
     if (!data.chart || !data.chart.result || data.chart.result.length === 0) {
-      console.error(`無法取得 ${symbol} 的資料`);
+      console.warn(`無法取得 ${symbol} 的資料（Yahoo Finance 返回空結果）`);
       return null;
     }
 
     const result = data.chart.result[0];
+    
+    // 檢查是否有錯誤訊息
+    if (result.error) {
+      console.warn(`Yahoo Finance API 錯誤: ${symbol} -`, result.error);
+      return null;
+    }
+    
     const meta = result.meta;
     
     // 取得當前價格（優先使用 regularMarketPrice，如果沒有則使用 previousClose）
@@ -286,6 +293,7 @@ const fetchHistoricalExchangeRate = async (year: number): Promise<number> => {
 
 /**
  * 批次取得多個股票的即時價格
+ * 先查詢台股和美股，如果還有未找到的，再嘗試以英股格式查詢
  * @param tickers 股票代號陣列（格式可以是 "TPE:2330" 或 "AAPL"）
  * @param markets 可選的市場類型陣列，與 tickers 對應
  * @returns 價格資料物件和匯率
@@ -295,24 +303,84 @@ export const fetchCurrentPrices = async (
   markets?: ('US' | 'TW' | 'UK')[]
 ): Promise<{ prices: Record<string, PriceData>, exchangeRate: number }> => {
   try {
-    // 轉換所有代號為 Yahoo Finance 格式
-    const yahooSymbols = tickers.map((ticker, index) => {
-      const market = markets?.[index];
-      return convertToYahooSymbol(ticker, market);
-    });
+    console.log(`開始查詢即時股價，共 ${tickers.length} 個股票代號`);
 
-    // 並行取得所有股票的價格
-    const pricePromises = yahooSymbols.map(symbol => fetchSingleStockPrice(symbol));
-    const prices = await Promise.all(pricePromises);
+    // 建立股票資訊陣列，包含原始 ticker、市場類型和索引
+    const stockInfos = tickers.map((ticker, index) => ({
+      originalTicker: ticker,
+      market: markets?.[index],
+      index
+    }));
 
-    // 建立結果物件，使用原始 ticker 作為 key
+    // 第一步：先查詢台股和美股
+    const twAndUsStocks = stockInfos.filter(info => 
+      info.market === 'TW' || info.market === 'US' || !info.market
+    );
+    
+    const remainingStocks: typeof stockInfos = [];
     const result: Record<string, PriceData> = {};
-    tickers.forEach((originalTicker, index) => {
-      const priceData = prices[index];
-      if (priceData) {
-        result[originalTicker] = priceData;
-      }
-    });
+
+    if (twAndUsStocks.length > 0) {
+      console.log(`第一階段：查詢 ${twAndUsStocks.length} 個台股和美股`);
+      
+      const twAndUsPromises = twAndUsStocks.map(async (info) => {
+        const yahooSymbol = convertToYahooSymbol(info.originalTicker, info.market);
+        console.log(`即時股價查詢：${info.originalTicker} (市場: ${info.market}) -> ${yahooSymbol}`);
+        const priceData = await fetchSingleStockPrice(yahooSymbol);
+        return { info, priceData };
+      });
+
+      const twAndUsResults = await Promise.all(twAndUsPromises);
+
+      // 處理查詢結果
+      twAndUsResults.forEach(({ info, priceData }) => {
+        if (priceData) {
+          result[info.originalTicker] = priceData;
+          console.log(`✓ 取得即時股價: ${info.originalTicker} = ${priceData.price}`);
+        } else {
+          console.warn(`✗ 無法取得 ${info.originalTicker} 的即時股價`);
+          remainingStocks.push(info);
+        }
+      });
+    }
+
+    // 第二步：如果還有未找到的股票，且原本就是英股或未指定市場，嘗試查詢英股
+    const ukStocks = stockInfos.filter(info => 
+      info.market === 'UK' || 
+      (!info.market && !result[info.originalTicker])
+    );
+
+    // 合併未找到的台股/美股和英股
+    const finalRemainingStocks = [
+      ...remainingStocks.filter(info => info.market !== 'UK'),
+      ...ukStocks
+    ];
+
+    if (finalRemainingStocks.length > 0) {
+      console.log(`第二階段：查詢 ${finalRemainingStocks.length} 個剩餘股票（嘗試英股格式）`);
+      
+      const ukPromises = finalRemainingStocks.map(async (info) => {
+        // 嘗試以英股格式查詢
+        const yahooSymbol = convertToYahooSymbol(info.originalTicker, 'UK');
+        console.log(`即時股價查詢（英股格式）：${info.originalTicker} -> ${yahooSymbol}`);
+        const priceData = await fetchSingleStockPrice(yahooSymbol);
+        return { info, priceData };
+      });
+
+      const ukResults = await Promise.all(ukPromises);
+
+      // 處理查詢結果
+      ukResults.forEach(({ info, priceData }) => {
+        if (priceData) {
+          result[info.originalTicker] = priceData;
+          console.log(`✓ 取得即時股價（英股）: ${info.originalTicker} = ${priceData.price}`);
+        } else {
+          console.warn(`✗ 無法取得 ${info.originalTicker} 的即時股價（英股格式也失敗）`);
+        }
+      });
+    }
+
+    console.log(`即時股價查詢完成，成功取得 ${Object.keys(result).length} 個價格`);
 
     // 同時取得匯率
     const exchangeRate = await fetchExchangeRate();
