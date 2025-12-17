@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Transaction, CashFlow, Account, HistoricalData, Market } from '../types';
 import { getPortfolioStateAtDate } from '../utils/calculations';
-import { fetchHistoricalYearEndData } from '../services/geminiService';
+import { fetchHistoricalYearEndData } from '../services/yahooFinanceService';
 
 interface Props {
   transactions: Transaction[];
@@ -101,17 +101,20 @@ const HistoricalDataModal: React.FC<Props> = ({
           // If no tickers are missing but rate needs update, we still need to call API.
           // We'll query one ticker to trigger the prompt logic if list is empty.
           let queryTickers: string[] = [];
+          let queryMarkets: ('US' | 'TW')[] = [];
           if (missingTickers.length > 0) {
               queryTickers = missingTickers.map(t => 
                  t.market === Market.TW && !t.ticker.includes('TPE:') ? `TPE:${t.ticker}` : t.ticker
               );
+              queryMarkets = missingTickers.map(t => t.market === Market.TW ? 'TW' as const : 'US' as const);
           } else if (activeTickers.length > 0) {
               // Fetch rate only case: query first ticker
               const t = activeTickers[0];
               queryTickers = [t.market === Market.TW && !t.ticker.includes('TPE:') ? `TPE:${t.ticker}` : t.ticker];
+              queryMarkets = [t.market === Market.TW ? 'TW' as const : 'US' as const];
           }
           
-          const result = await fetchHistoricalYearEndData(selectedYear, queryTickers);
+          const result = await fetchHistoricalYearEndData(selectedYear, queryTickers, queryMarkets);
           
           setLocalData(prev => {
               const prevData = prev[selectedYear] || { prices: {}, exchangeRate: 0 };
@@ -267,3 +270,4 @@ const HistoricalDataModal: React.FC<Props> = ({
 };
 
 export default HistoricalDataModal;
+
