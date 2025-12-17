@@ -345,13 +345,20 @@ const App: React.FC = () => {
     const holdingsToUse = baseHoldings.length > 0 ? baseHoldings : holdings;
     const holdingKeys = holdingsToUse.map(h => ({ market: h.market, ticker: h.ticker, key: `${h.market}-${h.ticker}` }));
     
-    // 建立 ticker 到 market 的對應關係
+    // 建立 ticker 到 market 的對應關係，同時建立原始 ticker 到查詢 ticker 的映射
     const tickerMarketMap = new Map<string, 'US' | 'TW'>();
+    const tickerToQueryTickerMap = new Map<string, string>(); // 原始 ticker -> 查詢用的 ticker
+    
     holdingKeys.forEach(h => {
-      let t = h.ticker;
-      if (h.market === Market.TW && !t.includes('TPE:') && !t.includes('TW') && !t.match(/^\d{4}$/)) t = `TPE:${t}`;
-      if (h.market === Market.TW && t.match(/^\d{4}$/)) t = `TPE:${t}`;
-      tickerMarketMap.set(t, h.market === Market.TW ? 'TW' : 'US');
+      let queryTicker = h.ticker;
+      if (h.market === Market.TW && !queryTicker.includes('TPE:') && !queryTicker.includes('TW') && !queryTicker.match(/^\d{4}$/)) {
+        queryTicker = `TPE:${queryTicker}`;
+      }
+      if (h.market === Market.TW && queryTicker.match(/^\d{4}$/)) {
+        queryTicker = `TPE:${queryTicker}`;
+      }
+      tickerMarketMap.set(queryTicker, h.market === Market.TW ? 'TW' : 'US');
+      tickerToQueryTickerMap.set(h.key, queryTicker); // 儲存映射關係
     });
     
     const queryList: string[] = Array.from(tickerMarketMap.keys());
@@ -365,22 +372,36 @@ const App: React.FC = () => {
       const newPrices: Record<string, number> = {};
       const newDetails: Record<string, { change: number, changePercent: number }> = {};
       
+      // 使用映射關係來匹配價格資料
       holdingKeys.forEach(h => {
-          let match = result.prices[h.ticker] || result.prices[`TPE:${h.ticker}`];
+          const queryTicker = tickerToQueryTickerMap.get(h.key) || h.ticker;
+          
+          // 優先使用查詢 ticker 匹配
+          let match = result.prices[queryTicker];
+          
+          // 如果找不到，嘗試其他可能的格式
           if (!match) {
-             const foundKey = Object.keys(result.prices).find(k => 
-                k.toLowerCase() === h.ticker.toLowerCase() || 
-                k.toLowerCase() === `tpe:${h.ticker}`.toLowerCase() ||
-                k.endsWith(h.ticker)
-             );
-             if (foundKey) match = result.prices[foundKey];
+            match = result.prices[h.ticker] || result.prices[`TPE:${h.ticker}`];
           }
+          
+          // 最後嘗試模糊匹配
+          if (!match) {
+            const foundKey = Object.keys(result.prices).find(k => 
+              k.toLowerCase() === h.ticker.toLowerCase() || 
+              k.toLowerCase() === queryTicker.toLowerCase() ||
+              k.toLowerCase() === `tpe:${h.ticker}`.toLowerCase() ||
+              k.endsWith(h.ticker) ||
+              (h.ticker.length >= 4 && k.includes(h.ticker))
+            );
+            if (foundKey) match = result.prices[foundKey];
+          }
+          
           if (match) {
-             const price = match.price;
-             const change = match.change || 0;
-             const changePercent = match.changePercent || 0;
-             newPrices[h.key] = price;
-             newDetails[h.key] = { change, changePercent };
+            const price = match.price;
+            const change = match.change || 0;
+            const changePercent = match.changePercent || 0;
+            newPrices[h.key] = price;
+            newDetails[h.key] = { change, changePercent };
           }
       });
       
