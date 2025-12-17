@@ -484,8 +484,8 @@ const App: React.FC = () => {
        }
     });
 
-    const stockValueTWD = baseHoldings.reduce((sum, h) => sum + (h.market === Market.US ? h.currentValue * exchangeRate : h.currentValue), 0);
-    const cashValueTWD = computedAccounts.reduce((sum, a) => sum + (a.currency === Currency.USD ? a.balance * exchangeRate : a.balance), 0);
+    const stockValueTWD = baseHoldings.reduce((sum: number, h: Holding) => sum + (h.market === Market.US ? h.currentValue * exchangeRate : h.currentValue), 0);
+    const cashValueTWD = computedAccounts.reduce((sum: number, a: Account) => sum + (a.currency === Currency.USD ? a.balance * exchangeRate : a.balance), 0);
     const totalValueTWD = stockValueTWD;
     const totalAssets = totalValueTWD + cashValueTWD;
     const totalPLTWD = totalAssets - netInvestedTWD;
