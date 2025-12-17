@@ -230,7 +230,7 @@ const HistoricalDataModal: React.FC<Props> = ({
                                            </span>
                                        </td>
                                        <td className="px-4 py-2 font-bold text-slate-700">
-                                           {t.ticker}
+                                           {t.ticker.replace(/\(BAK\)/gi, '')}
                                            {hasData && <span className="text-green-500 ml-1 text-xs">✓</span>}
                                        </td>
                                        <td className="px-4 py-2 text-right">
