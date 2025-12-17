@@ -51,112 +51,43 @@ const convertToYahooSymbol = (ticker: string, market?: 'US' | 'TW' | 'UK'): stri
  * 使用 CORS 代理服務取得資料（帶備用方案）
  */
 const fetchWithProxy = async (url: string): Promise<Response | null> => {
-  // 多個 CORS 代理服務作為備用（按優先順序排列）
+  // 多個 CORS 代理服務作為備用
   const proxies = [
-    // 優先使用較穩定的代理服務
-    `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(url)}`,
-    `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`,
-    // 使用 allorigins.win 的 raw 方法作為備選
     `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
-    // 其他備選代理服務
-    `https://cors-anywhere.herokuapp.com/${url}`,
-    `https://thingproxy.freeboard.io/fetch/${url}`,
-    // 使用 CORS Proxy 服務
     `https://corsproxy.io/?${encodeURIComponent(url)}`,
+    `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(url)}`,
     // 直接嘗試（某些環境可能允許）
     url
   ];
 
-  for (let i = 0; i < proxies.length; i++) {
-    const proxyUrl = proxies[i];
+  for (const proxyUrl of proxies) {
     try {
       // 使用 AbortController 實現超時（兼容性更好）
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 8000); // 8 秒超時
+      const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 秒超時
 
       const response = await fetch(proxyUrl, {
         method: 'GET',
         headers: {
           'Accept': 'application/json',
         },
-        signal: controller.signal,
-        // 添加 mode 選項以處理 CORS
-        mode: 'cors',
-        credentials: 'omit'
+        signal: controller.signal
       });
 
       clearTimeout(timeoutId);
 
-      // 檢查響應狀態
       if (response.ok) {
-        // 如果使用 allorigins.win 的 get 方法，需要解析 JSON 並提取內容
-        if (proxyUrl.includes('api.allorigins.win/get')) {
-          try {
-            const text = await response.text();
-            // 檢查是否為有效的 JSON
-            if (!text.trim().startsWith('{') && !text.trim().startsWith('[')) {
-              // 檢查是否為限流錯誤
-              if (text.includes('Too Many Requests') || text.includes('429')) {
-                console.warn(`代理服務限流 (Too Many Requests)，跳過此代理`);
-                continue;
-              }
-              console.warn(`allorigins.win 返回非 JSON 響應: ${text.substring(0, 100)}...`);
-              continue;
-            }
-            const jsonData = JSON.parse(text);
-            // allorigins.win 的 get 方法返回格式：{ contents: "...", status: {...} }
-            if (jsonData.contents) {
-              // 檢查 contents 中是否包含限流錯誤
-              if (typeof jsonData.contents === 'string' && 
-                  (jsonData.contents.includes('Too Many Requests') || jsonData.contents.includes('429'))) {
-                console.warn(`代理服務限流 (Too Many Requests)，跳過此代理`);
-                continue;
-              }
-              // 創建一個新的 Response 對象，包含解析後的內容
-              return new Response(jsonData.contents, {
-                status: 200,
-                statusText: 'OK',
-                headers: { 'Content-Type': 'application/json' }
-              });
-            } else {
-              console.warn(`allorigins.win 返回的內容為空`);
-              continue;
-            }
-          } catch (parseError: any) {
-            console.warn(`解析 allorigins.win 響應失敗: ${parseError.message}`);
-            continue;
-          }
-        }
-        // 其他代理服務直接返回響應
         return response;
-      } else {
-        // 檢查是否為限流錯誤（429）
-        if (response.status === 429) {
-          console.warn(`代理服務限流 (429 Too Many Requests): ${proxyUrl.substring(0, 60)}...`);
-          continue;
-        }
-        // 記錄非 200 狀態碼（特別是 404 表示服務不可用）
-        if (response.status === 404) {
-          console.warn(`代理服務不可用 (404): ${proxyUrl.substring(0, 60)}...`);
-        } else {
-          console.warn(`代理服務返回錯誤狀態碼 ${response.status}: ${proxyUrl.substring(0, 60)}...`);
-        }
-        continue;
       }
     } catch (error: any) {
       // 繼續嘗試下一個代理
-      if (error.name === 'AbortError') {
-        console.warn(`代理服務超時: ${proxyUrl.substring(0, 50)}...`);
-      } else if (error.name === 'TypeError' && error.message.includes('CORS')) {
-        console.warn(`CORS 錯誤，嘗試下一個代理: ${proxyUrl.substring(0, 50)}...`);
-      } else {
-        console.warn(`代理服務失敗 (${error.name})，嘗試下一個: ${proxyUrl.substring(0, 50)}...`);
+      if (error.name !== 'AbortError') {
+        console.warn(`代理服務失敗，嘗試下一個: ${proxyUrl.substring(0, 50)}...`);
       }
       continue;
     }
   }
 
-  console.error(`所有代理服務均失敗，無法取得資料: ${url.substring(0, 80)}...`);
   return null;
 };
 
@@ -176,34 +107,14 @@ const fetchSingleStockPrice = async (symbol: string): Promise<PriceData | null> 
       return null;
     }
 
-    // 安全地解析 JSON，處理可能的 HTML 錯誤頁面
-    let data;
-    try {
-      const text = await response.text();
-      // 檢查是否為有效的 JSON（以 { 或 [ 開頭）
-      if (!text.trim().startsWith('{') && !text.trim().startsWith('[')) {
-        console.warn(`代理服務返回非 JSON 響應: ${symbol} - ${text.substring(0, 100)}...`);
-        return null;
-      }
-      data = JSON.parse(text);
-    } catch (parseError: any) {
-      console.warn(`解析 JSON 失敗: ${symbol} - ${parseError.message}`);
-      return null;
-    }
+    const data = await response.json();
     
     if (!data.chart || !data.chart.result || data.chart.result.length === 0) {
-      console.warn(`無法取得 ${symbol} 的資料（Yahoo Finance 返回空結果）`);
+      console.error(`無法取得 ${symbol} 的資料`);
       return null;
     }
 
     const result = data.chart.result[0];
-    
-    // 檢查是否有錯誤訊息
-    if (result.error) {
-      console.warn(`Yahoo Finance API 錯誤: ${symbol} -`, result.error);
-      return null;
-    }
-    
     const meta = result.meta;
     
     // 取得當前價格（優先使用 regularMarketPrice，如果沒有則使用 previousClose）
@@ -255,19 +166,7 @@ const fetchExchangeRate = async (): Promise<number> => {
       return 31.5; // 預設匯率
     }
 
-    // 安全地解析 JSON
-    let data;
-    try {
-      const text = await response.text();
-      if (!text.trim().startsWith('{') && !text.trim().startsWith('[')) {
-        console.warn(`代理服務返回非 JSON 響應（匯率）: ${text.substring(0, 100)}...`);
-        return 31.5; // 預設匯率
-      }
-      data = JSON.parse(text);
-    } catch (parseError: any) {
-      console.warn(`解析匯率 JSON 失敗: ${parseError.message}`);
-      return 31.5; // 預設匯率
-    }
+    const data = await response.json();
     
     if (!data.chart || !data.chart.result || data.chart.result.length === 0) {
       return 31.5; // 預設匯率
@@ -312,19 +211,7 @@ const fetchHistoricalExchangeRate = async (year: number): Promise<number> => {
       return await fetchExchangeRate();
     }
 
-    // 安全地解析 JSON
-    let data;
-    try {
-      const text = await response.text();
-      if (!text.trim().startsWith('{') && !text.trim().startsWith('[')) {
-        console.warn(`代理服務返回非 JSON 響應（歷史匯率）: ${text.substring(0, 100)}...`);
-        return await fetchExchangeRate();
-      }
-      data = JSON.parse(text);
-    } catch (parseError: any) {
-      console.warn(`解析歷史匯率 JSON 失敗: ${parseError.message}`);
-      return await fetchExchangeRate();
-    }
+    const data = await response.json();
     
     if (!data.chart || !data.chart.result || data.chart.result.length === 0) {
       console.warn(`Yahoo Finance 返回空匯率數據，使用當前匯率作為備用`);
@@ -399,7 +286,6 @@ const fetchHistoricalExchangeRate = async (year: number): Promise<number> => {
 
 /**
  * 批次取得多個股票的即時價格
- * 先查詢台股和美股，如果還有未找到的，再嘗試以英股格式查詢
  * @param tickers 股票代號陣列（格式可以是 "TPE:2330" 或 "AAPL"）
  * @param markets 可選的市場類型陣列，與 tickers 對應
  * @returns 價格資料物件和匯率
@@ -409,96 +295,24 @@ export const fetchCurrentPrices = async (
   markets?: ('US' | 'TW' | 'UK')[]
 ): Promise<{ prices: Record<string, PriceData>, exchangeRate: number }> => {
   try {
-    console.log(`開始查詢即時股價，共 ${tickers.length} 個股票代號`);
+    // 轉換所有代號為 Yahoo Finance 格式
+    const yahooSymbols = tickers.map((ticker, index) => {
+      const market = markets?.[index];
+      return convertToYahooSymbol(ticker, market);
+    });
 
-    // 建立股票資訊陣列，包含原始 ticker、市場類型和索引
-    const stockInfos = tickers.map((ticker, index) => ({
-      originalTicker: ticker,
-      market: markets?.[index],
-      index
-    }));
+    // 並行取得所有股票的價格
+    const pricePromises = yahooSymbols.map(symbol => fetchSingleStockPrice(symbol));
+    const prices = await Promise.all(pricePromises);
 
-    // 第一步：先查詢台股和美股
-    const twAndUsStocks = stockInfos.filter(info => 
-      info.market === 'TW' || info.market === 'US' || !info.market
-    );
-    
-    const remainingStocks: typeof stockInfos = [];
+    // 建立結果物件，使用原始 ticker 作為 key
     const result: Record<string, PriceData> = {};
-
-    if (twAndUsStocks.length > 0) {
-      console.log(`第一階段：查詢 ${twAndUsStocks.length} 個台股和美股`);
-      
-      // 串行處理請求，避免觸發限流（每個請求間隔 1.5 秒）
-      const twAndUsResults = [];
-      for (let i = 0; i < twAndUsStocks.length; i++) {
-        const info = twAndUsStocks[i];
-        const yahooSymbol = convertToYahooSymbol(info.originalTicker, info.market);
-        console.log(`即時股價查詢：${info.originalTicker} (市場: ${info.market}) -> ${yahooSymbol}`);
-        const priceData = await fetchSingleStockPrice(yahooSymbol);
-        twAndUsResults.push({ info, priceData });
-        
-        // 如果不是最後一個請求，等待 1.5 秒再發送下一個
-        if (i < twAndUsStocks.length - 1) {
-          await new Promise(resolve => setTimeout(resolve, 1500));
-        }
+    tickers.forEach((originalTicker, index) => {
+      const priceData = prices[index];
+      if (priceData) {
+        result[originalTicker] = priceData;
       }
-
-      // 處理查詢結果
-      twAndUsResults.forEach(({ info, priceData }) => {
-        if (priceData) {
-          result[info.originalTicker] = priceData;
-          console.log(`✓ 取得即時股價: ${info.originalTicker} = ${priceData.price}`);
-        } else {
-          console.warn(`✗ 無法取得 ${info.originalTicker} 的即時股價`);
-          remainingStocks.push(info);
-        }
-      });
-    }
-
-    // 第二步：如果還有未找到的股票，且原本就是英股或未指定市場，嘗試查詢英股
-    const ukStocks = stockInfos.filter(info => 
-      info.market === 'UK' || 
-      (!info.market && !result[info.originalTicker])
-    );
-
-    // 合併未找到的台股/美股和英股
-    const finalRemainingStocks = [
-      ...remainingStocks.filter(info => info.market !== 'UK'),
-      ...ukStocks
-    ];
-
-    if (finalRemainingStocks.length > 0) {
-      console.log(`第二階段：查詢 ${finalRemainingStocks.length} 個剩餘股票（嘗試英股格式）`);
-      
-      // 串行處理請求，避免觸發限流（每個請求間隔 1.5 秒）
-      const ukResults = [];
-      for (let i = 0; i < finalRemainingStocks.length; i++) {
-        const info = finalRemainingStocks[i];
-        // 嘗試以英股格式查詢
-        const yahooSymbol = convertToYahooSymbol(info.originalTicker, 'UK');
-        console.log(`即時股價查詢（英股格式）：${info.originalTicker} -> ${yahooSymbol}`);
-        const priceData = await fetchSingleStockPrice(yahooSymbol);
-        ukResults.push({ info, priceData });
-        
-        // 如果不是最後一個請求，等待 1.5 秒再發送下一個
-        if (i < finalRemainingStocks.length - 1) {
-          await new Promise(resolve => setTimeout(resolve, 1500));
-        }
-      }
-
-      // 處理查詢結果
-      ukResults.forEach(({ info, priceData }) => {
-        if (priceData) {
-          result[info.originalTicker] = priceData;
-          console.log(`✓ 取得即時股價（英股）: ${info.originalTicker} = ${priceData.price}`);
-        } else {
-          console.warn(`✗ 無法取得 ${info.originalTicker} 的即時股價（英股格式也失敗）`);
-        }
-      });
-    }
-
-    console.log(`即時股價查詢完成，成功取得 ${Object.keys(result).length} 個價格`);
+    });
 
     // 同時取得匯率
     const exchangeRate = await fetchExchangeRate();
@@ -514,84 +328,7 @@ export const fetchCurrentPrices = async (
 };
 
 /**
- * 取得單一股票的歷史股價（年底收盤價）
- * @param symbol Yahoo Finance 格式的代號
- * @param startDate 開始日期（Unix 時間戳）
- * @param endDate 結束日期（Unix 時間戳）
- * @returns 價格或 null
- */
-const fetchSingleHistoricalPrice = async (
-  symbol: string,
-  startDate: number,
-  endDate: number
-): Promise<number | null> => {
-  try {
-    const baseUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?period1=${startDate}&period2=${endDate}&interval=1d`;
-    console.log(`查詢 URL: ${baseUrl.substring(0, 100)}...`);
-    
-    const response = await fetchWithProxy(baseUrl);
-    if (!response || !response.ok) {
-      console.warn(`HTTP 錯誤: ${symbol} - ${response?.status || '無回應'}`);
-      return null;
-    }
-
-    // 安全地解析 JSON，處理可能的 HTML 錯誤頁面
-    let data;
-    try {
-      const text = await response.text();
-      // 檢查是否為有效的 JSON（以 { 或 [ 開頭）
-      if (!text.trim().startsWith('{') && !text.trim().startsWith('[')) {
-        console.warn(`代理服務返回非 JSON 響應: ${symbol} - ${text.substring(0, 100)}...`);
-        return null;
-      }
-      data = JSON.parse(text);
-    } catch (parseError: any) {
-      console.warn(`解析 JSON 失敗: ${symbol} - ${parseError.message}`);
-      return null;
-    }
-    
-    if (!data.chart || !data.chart.result || data.chart.result.length === 0) {
-      console.warn(`Yahoo Finance 返回空數據: ${symbol}`);
-      return null;
-    }
-
-    const result = data.chart.result[0];
-    
-    // 檢查是否有錯誤訊息
-    if (result.error) {
-      console.warn(`Yahoo Finance API 錯誤: ${symbol} -`, result.error);
-      return null;
-    }
-    
-    const timestamps = result.timestamp || [];
-    const closes = result.indicators?.quote?.[0]?.close || [];
-    
-    console.log(`取得 ${symbol} 數據：${timestamps.length} 個時間點，${closes.filter((c: any) => c != null).length} 個有效價格`);
-
-    // 找到最接近年底的收盤價
-    if (timestamps.length === 0 || closes.length === 0) {
-      return null;
-    }
-
-    // 找到最後一個有效價格
-    let lastPrice = null;
-    for (let i = closes.length - 1; i >= 0; i--) {
-      if (closes[i] != null) {
-        lastPrice = closes[i];
-        break;
-      }
-    }
-
-    return lastPrice;
-  } catch (error) {
-    console.error(`取得 ${symbol} 歷史資料時發生錯誤:`, error);
-    return null;
-  }
-};
-
-/**
  * 取得歷史股價資料（年底收盤價）
- * 先查詢台股和美股，如果還有未找到的，再查詢英股
  * @param year 年份
  * @param tickers 股票代號陣列
  * @param markets 可選的市場類型陣列
@@ -606,96 +343,83 @@ export const fetchHistoricalYearEndData = async (
     const endDate = Math.floor(new Date(`${year}-12-31`).getTime() / 1000);
     const startDate = Math.floor(new Date(`${year}-12-01`).getTime() / 1000);
 
-    console.log(`開始查詢 ${year} 年歷史股價，共 ${tickers.length} 個股票代號`);
+    const yahooSymbols = tickers.map((ticker, index) => {
+      const market = markets?.[index];
+      const converted = convertToYahooSymbol(ticker, market);
+      console.log(`歷史股價查詢：${ticker} (市場: ${market}) -> ${converted}`);
+      return converted;
+    });
 
-    // 建立股票資訊陣列，包含原始 ticker、市場類型和索引
-    const stockInfos = tickers.map((ticker, index) => ({
-      originalTicker: ticker,
-      market: markets?.[index],
-      index
-    }));
+    const pricePromises = yahooSymbols.map(async (symbol, index) => {
+      try {
+        const baseUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?period1=${startDate}&period2=${endDate}&interval=1d`;
+        console.log(`查詢 URL: ${baseUrl.substring(0, 100)}...`);
+        
+        const response = await fetchWithProxy(baseUrl);
+        if (!response || !response.ok) {
+          console.warn(`HTTP 錯誤: ${symbol} - ${response?.status || '無回應'}`);
+          return null;
+        }
 
-    // 第一步：先查詢台股和美股
-    const twAndUsStocks = stockInfos.filter(info => 
-      info.market === 'TW' || info.market === 'US' || !info.market
-    );
-    
-    const remainingStocks: typeof stockInfos = [];
+        const data = await response.json();
+        if (!data.chart || !data.chart.result || data.chart.result.length === 0) {
+          console.warn(`Yahoo Finance 返回空數據: ${symbol}`);
+          return null;
+        }
+
+        const result = data.chart.result[0];
+        
+        // 檢查是否有錯誤訊息
+        if (result.error) {
+          console.warn(`Yahoo Finance API 錯誤: ${symbol} -`, result.error);
+          return null;
+        }
+        
+        const timestamps = result.timestamp || [];
+        const closes = result.indicators?.quote?.[0]?.close || [];
+        
+        console.log(`取得 ${symbol} 數據：${timestamps.length} 個時間點，${closes.filter((c: any) => c != null).length} 個有效價格`);
+
+        // 找到最接近年底的收盤價
+        if (timestamps.length === 0 || closes.length === 0) {
+          return null;
+        }
+
+        // 找到最後一個有效價格
+        let lastPrice = null;
+        for (let i = closes.length - 1; i >= 0; i--) {
+          if (closes[i] != null) {
+            lastPrice = closes[i];
+            break;
+          }
+        }
+
+        return lastPrice;
+      } catch (error) {
+        console.error(`取得 ${symbol} 歷史資料時發生錯誤:`, error);
+        return null;
+      }
+    });
+
+    const historicalPrices = await Promise.all(pricePromises);
+
     const result: Record<string, number> = {};
-
-    if (twAndUsStocks.length > 0) {
-      console.log(`第一階段：查詢 ${twAndUsStocks.length} 個台股和美股`);
-      
-      const twAndUsPromises = twAndUsStocks.map(async (info) => {
-        const yahooSymbol = convertToYahooSymbol(info.originalTicker, info.market);
-        console.log(`歷史股價查詢：${info.originalTicker} (市場: ${info.market}) -> ${yahooSymbol}`);
-        const price = await fetchSingleHistoricalPrice(yahooSymbol, startDate, endDate);
-        return { info, price };
-      });
-
-      const twAndUsResults = await Promise.all(twAndUsPromises);
-
-      // 處理查詢結果
-      twAndUsResults.forEach(({ info, price }) => {
-        if (price != null && price > 0) {
-          result[info.originalTicker] = price;
-          console.log(`✓ 儲存歷史股價: ${info.originalTicker} = ${price}`);
-          // 同時支援不帶 TPE: 前綴的 key（用於向後兼容）
-          const cleanTicker = info.originalTicker.replace(/^TPE:/i, '');
-          if (cleanTicker !== info.originalTicker) {
-            result[cleanTicker] = price;
-            console.log(`  同時儲存: ${cleanTicker} = ${price}`);
-          }
-        } else {
-          console.warn(`✗ 無法取得 ${info.originalTicker} 的歷史股價`);
-          remainingStocks.push(info);
+    tickers.forEach((originalTicker, index) => {
+      const price = historicalPrices[index];
+      if (price != null && price > 0) {
+        result[originalTicker] = price;
+        console.log(`儲存歷史股價: ${originalTicker} = ${price}`);
+        // 同時支援不帶 TPE: 前綴的 key（用於向後兼容）
+        const cleanTicker = originalTicker.replace(/^TPE:/i, '');
+        if (cleanTicker !== originalTicker) {
+          result[cleanTicker] = price;
+          console.log(`同時儲存: ${cleanTicker} = ${price}`);
         }
-      });
-    }
-
-    // 第二步：如果還有未找到的股票，且原本就是英股或未指定市場，嘗試查詢英股
-    const ukStocks = stockInfos.filter(info => 
-      info.market === 'UK' || 
-      (!info.market && !result[info.originalTicker] && !result[info.originalTicker.replace(/^TPE:/i, '')])
-    );
-
-    // 合併未找到的台股/美股和英股
-    const finalRemainingStocks = [
-      ...remainingStocks.filter(info => info.market !== 'UK'),
-      ...ukStocks
-    ];
-
-    if (finalRemainingStocks.length > 0) {
-      console.log(`第二階段：查詢 ${finalRemainingStocks.length} 個剩餘股票（嘗試英股格式）`);
-      
-      const ukPromises = finalRemainingStocks.map(async (info) => {
-        // 嘗試以英股格式查詢
-        const yahooSymbol = convertToYahooSymbol(info.originalTicker, 'UK');
-        console.log(`歷史股價查詢（英股格式）：${info.originalTicker} -> ${yahooSymbol}`);
-        const price = await fetchSingleHistoricalPrice(yahooSymbol, startDate, endDate);
-        return { info, price };
-      });
-
-      const ukResults = await Promise.all(ukPromises);
-
-      // 處理查詢結果
-      ukResults.forEach(({ info, price }) => {
-        if (price != null && price > 0) {
-          result[info.originalTicker] = price;
-          console.log(`✓ 儲存歷史股價（英股）: ${info.originalTicker} = ${price}`);
-          // 同時支援不帶 TPE: 前綴的 key（用於向後兼容）
-          const cleanTicker = info.originalTicker.replace(/^TPE:/i, '');
-          if (cleanTicker !== info.originalTicker) {
-            result[cleanTicker] = price;
-            console.log(`  同時儲存: ${cleanTicker} = ${price}`);
-          }
-        } else {
-          console.warn(`✗ 無法取得 ${info.originalTicker} 的歷史股價（英股格式也失敗）`);
-        }
-      });
-    }
+      } else {
+        console.warn(`無法取得 ${originalTicker} (${yahooSymbols[index]}) 的歷史股價，價格: ${price}`);
+      }
+    });
     
-    console.log(`歷史股價查詢完成，成功取得 ${Object.keys(result).length} 個價格`);
     console.log(`歷史股價查詢結果:`, result);
 
     // 取得歷史匯率（查詢指定年份的歷史匯率）
