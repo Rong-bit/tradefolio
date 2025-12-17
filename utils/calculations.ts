@@ -123,13 +123,6 @@ export const calculateHoldings = (
       // 如果有 details，使用其實際值（即使是 0 也代表平盤）；如果沒有，使用 undefined 表示未取得
       const dailyChange = details !== undefined ? (details.change !== undefined ? details.change : 0) : undefined;
       const dailyChangePercent = details !== undefined ? (details.changePercent !== undefined ? details.changePercent : 0) : undefined;
-      
-      // 調試日誌
-      if (details) {
-        console.log(`📈 計算持倉漲跌: ${priceKey} -> change: ${dailyChange}, changePercent: ${dailyChangePercent}%`);
-      } else if (priceDetails && Object.keys(priceDetails).length > 0) {
-        console.log(`⚠️ 找不到 ${priceKey} 的漲跌資料，可用的 keys:`, Object.keys(priceDetails));
-      }
 
       return { 
         ...h, 
