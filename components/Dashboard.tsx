@@ -217,15 +217,6 @@ const Dashboard: React.FC<Props> = ({
         <div className="bg-white p-6 rounded-xl shadow overflow-hidden">
           <div className="flex justify-between items-center mb-4">
               <h3 className="font-bold text-slate-800 text-lg">資產與成本趨勢 (Asset vs Cost)</h3>
-              {onUpdateHistorical && (
-                <button 
-                  onClick={onUpdateHistorical}
-                  className="text-xs px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded border border-indigo-200 flex items-center gap-1 transition"
-                  title="手動編輯或使用 AI 修正歷史股價"
-                >
-                  <span>🤖</span> AI 校正歷史資產
-                </button>
-              )}
           </div>
           
           <div className="w-full overflow-x-auto">
@@ -337,8 +328,17 @@ const Dashboard: React.FC<Props> = ({
       {/* Annual Performance Table (Below Charts) - Only shown if NOT guest */}
       {!isGuest && annualPerformance.length > 0 && (
           <div className="bg-white rounded-xl shadow overflow-hidden">
-            <div className="px-6 py-4 border-b border-slate-100">
+            <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center">
               <h3 className="font-bold text-slate-800 text-lg">年度績效表 (Annual Performance)</h3>
+              {onUpdateHistorical && (
+                <button 
+                  onClick={onUpdateHistorical}
+                  className="text-xs px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded border border-indigo-200 flex items-center gap-1 transition"
+                  title="手動編輯或使用 AI 修正歷史股價"
+                >
+                  <span>🤖</span> AI 校正歷史資產
+                </button>
+              )}
             </div>
             <div className="overflow-x-auto">
               <table className="min-w-full text-sm text-left">
