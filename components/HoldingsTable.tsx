@@ -143,7 +143,10 @@ const HoldingsTable: React.FC<Props> = ({ holdings, onUpdatePrice, onAutoUpdate 
                 const currency = h.market === Market.TW ? 'TWD' : 'USD';
                 const plColor = isProfit ? 'text-emerald-600' : 'text-rose-600';
                 const roiColor = h.annualizedReturn >= 0 ? 'text-blue-600' : 'text-orange-600';
-                const dailyChangeColor = (h.dailyChange || 0) >= 0 ? 'text-emerald-600' : 'text-rose-600';
+                // 只有當 dailyChange 不是 undefined/null 時才根據正負值決定顏色，否則保持預設顏色
+                const dailyChangeColor = h.dailyChange !== undefined && h.dailyChange !== null 
+                  ? (h.dailyChange >= 0 ? 'text-emerald-600' : 'text-rose-600')
+                  : 'text-slate-500';
                 const uniqueKey = `${h.market}-${h.ticker}`;
                 
                 return (
@@ -215,12 +218,16 @@ const HoldingsTable: React.FC<Props> = ({ holdings, onUpdatePrice, onAutoUpdate 
 
                     {/* 10. Daily Change */}
                     <td className={`px-4 py-3 text-right text-xs font-bold ${dailyChangeColor}`}>
-                      {h.dailyChange !== undefined && h.dailyChange !== 0 ? (
+                      {h.dailyChange !== undefined && h.dailyChange !== null ? (
                          <div className="flex flex-col items-end">
                            <span>{h.dailyChange > 0 ? '+' : ''}{h.dailyChange.toFixed(2)}</span>
-                           <span className="opacity-75">{h.dailyChangePercent ? `(${h.dailyChangePercent > 0 ? '+' : ''}${h.dailyChangePercent.toFixed(2)}%)` : ''}</span>
+                           {h.dailyChangePercent !== undefined && h.dailyChangePercent !== null && (
+                             <span className="opacity-75">({h.dailyChangePercent > 0 ? '+' : ''}{h.dailyChangePercent.toFixed(2)}%)</span>
+                           )}
                          </div>
-                      ) : '-'}
+                      ) : (
+                        <span className="text-slate-400">-</span>
+                      )}
                     </td>
 
                     {/* 11. Avg Cost */}
