@@ -106,16 +106,62 @@ const fetchSingleStockPrice = async (symbol: string): Promise<PriceData | null> 
     const result = data.chart.result[0];
     const meta = result.meta;
     
-    // 取得當前價格、前收盤價以計算變動
-    const regularMarketPrice = meta.regularMarketPrice || meta.previousClose || 0;
-    const previousClose = meta.previousClose || meta.regularMarketPrice || 0;
-    const change = regularMarketPrice - previousClose;
-    const changePercent = previousClose > 0 ? (change / previousClose) * 100 : 0;
-
-    return {
+    // 取得當前價格（優先使用 regularMarketPrice，如果沒有則使用 previousClose）
+    const regularMarketPrice = meta.regularMarketPrice ?? meta.previousClose ?? 0;
+    const previousClose = meta.previousClose ?? meta.chartPreviousClose ?? 0;
+    
+    // 調試：顯示 API 返回的原始數據
+    console.log(`🔍 ${symbol} API 原始數據:`, {
+      regularMarketPrice: meta.regularMarketPrice,
+      previousClose: meta.previousClose,
+      chartPreviousClose: meta.chartPreviousClose,
+      regularMarketChange: meta.regularMarketChange,
+      regularMarketChangePercent: meta.regularMarketChangePercent,
+      postMarketChange: meta.postMarketChange,
+      postMarketChangePercent: meta.postMarketChangePercent,
+      preMarketChange: meta.preMarketChange,
+      preMarketChangePercent: meta.preMarketChangePercent,
+      allMetaKeys: Object.keys(meta).filter(k => k.toLowerCase().includes('change') || k.toLowerCase().includes('price') || k.toLowerCase().includes('close'))
+    });
+    
+    // 優先使用 API 提供的 change 和 changePercent（更準確）
+    // 嘗試多個可能的字段：regularMarketChange, postMarketChange, preMarketChange
+    let change: number | undefined = meta.regularMarketChange ?? meta.postMarketChange ?? meta.preMarketChange;
+    let changePercent: number | undefined = meta.regularMarketChangePercent ?? meta.postMarketChangePercent ?? meta.preMarketChangePercent;
+    
+    // 如果 API 沒有提供 change，則計算：現價 - 昨日收盤價
+    if (change === undefined || change === null || isNaN(change)) {
+      change = regularMarketPrice - previousClose;
+      console.log(`📐 ${symbol} 計算漲跌: ${regularMarketPrice} - ${previousClose} = ${change}`);
+    } else {
+      console.log(`✅ ${symbol} 使用 API 提供的漲跌: ${change}`);
+    }
+    
+    // 如果 API 沒有提供 changePercent，則計算
+    if (changePercent === undefined || changePercent === null || isNaN(changePercent)) {
+      changePercent = previousClose > 0 ? (change / previousClose) * 100 : 0;
+      console.log(`📐 ${symbol} 計算漲跌幅: (${change} / ${previousClose}) * 100 = ${changePercent}%`);
+    } else {
+      console.log(`✅ ${symbol} 使用 API 提供的漲跌幅: ${changePercent}%`);
+    }
+    
+    console.log(`📊 ${symbol} 最終價格資料:`, {
       price: regularMarketPrice,
+      previousClose: previousClose,
       change: change,
       changePercent: changePercent,
+      metaHasChange: meta.regularMarketChange !== undefined,
+      metaHasChangePercent: meta.regularMarketChangePercent !== undefined
+    });
+
+    // 確保 change 和 changePercent 是有效的數字
+    const finalChange = (change !== undefined && change !== null && !isNaN(change)) ? change : 0;
+    const finalChangePercent = (changePercent !== undefined && changePercent !== null && !isNaN(changePercent)) ? changePercent : 0;
+    
+    return {
+      price: regularMarketPrice,
+      change: finalChange,
+      changePercent: finalChangePercent,
     };
   } catch (error) {
     console.error(`取得 ${symbol} 股價時發生錯誤:`, error);
