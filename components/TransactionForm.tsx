@@ -157,7 +157,7 @@ const TransactionForm: React.FC<Props> = ({ accounts, onAdd, onClose }) => {
                 'USD'
               })</label>
               <input 
-                type="number" name="price" required step="0.01" min="0"
+                type="number" name="price" required step="any" min="0"
                 value={formData.price} onChange={handleChange}
                 placeholder={formData.type === TransactionType.CASH_DIVIDEND ? '股息總額' : '單價'}
                 className="mt-1 w-full border border-slate-300 rounded-md p-2"
@@ -171,7 +171,7 @@ const TransactionForm: React.FC<Props> = ({ accounts, onAdd, onClose }) => {
                 {formData.type === TransactionType.CASH_DIVIDEND ? '設為 1' : '數量 (股)'}
               </label>
               <input 
-                type="number" name="quantity" required step="0.0001" min="0"
+                type="number" name="quantity" required step="any" min="0"
                 value={formData.quantity} onChange={handleChange}
                 className="mt-1 w-full border border-slate-300 rounded-md p-2"
               />
