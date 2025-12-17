@@ -118,7 +118,7 @@ const HistoricalDataModal: React.FC<Props> = ({
           // If no tickers are missing but rate needs update, we still need to call API.
           // We'll query one ticker to trigger the prompt logic if list is empty.
           let queryTickers: string[] = [];
-          let queryMarkets: ('US' | 'TW')[] = [];
+          let queryMarkets: ('US' | 'TW' | 'UK' | 'JP')[] = [];
           if (missingTickers.length > 0) {
               queryTickers = missingTickers.map(t => {
                   // 移除 (BAK) 後綴
