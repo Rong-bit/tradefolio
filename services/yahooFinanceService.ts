@@ -53,14 +53,16 @@ const convertToYahooSymbol = (ticker: string, market?: 'US' | 'TW' | 'UK'): stri
 const fetchWithProxy = async (url: string): Promise<Response | null> => {
   // 多個 CORS 代理服務作為備用（按優先順序排列）
   const proxies = [
-    // 使用 CORS Anywhere 風格的代理
-    `https://corsproxy.io/?${encodeURIComponent(url)}`,
+    // 優先使用較穩定的代理服務
     `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(url)}`,
-    // 使用 allorigins.win（但改用 get 方法，更穩定）
     `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`,
+    // 使用 allorigins.win 的 raw 方法作為備選
+    `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
     // 其他備選代理服務
     `https://cors-anywhere.herokuapp.com/${url}`,
     `https://thingproxy.freeboard.io/fetch/${url}`,
+    // 使用 CORS Proxy 服務
+    `https://corsproxy.io/?${encodeURIComponent(url)}`,
     // 直接嘗試（某些環境可能允許）
     url
   ];
@@ -117,8 +119,12 @@ const fetchWithProxy = async (url: string): Promise<Response | null> => {
         // 其他代理服務直接返回響應
         return response;
       } else {
-        // 記錄非 200 狀態碼
-        console.warn(`代理服務返回錯誤狀態碼 ${response.status}: ${proxyUrl.substring(0, 60)}...`);
+        // 記錄非 200 狀態碼（特別是 404 表示服務不可用）
+        if (response.status === 404) {
+          console.warn(`代理服務不可用 (404): ${proxyUrl.substring(0, 60)}...`);
+        } else {
+          console.warn(`代理服務返回錯誤狀態碼 ${response.status}: ${proxyUrl.substring(0, 60)}...`);
+        }
         continue;
       }
     } catch (error: any) {
