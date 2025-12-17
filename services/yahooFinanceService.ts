@@ -7,21 +7,27 @@ export interface PriceData {
 
 /**
  * 將股票代號轉換為 Yahoo Finance 格式
- * @param ticker 原始股票代號（如 "TPE:2330" 或 "AAPL"）
+ * @param ticker 原始股票代號（如 "TPE:2330" 或 "AAPL" 或 "DTLA"）
  * @param market 市場類型
- * @returns Yahoo Finance 格式的代號（如 "2330.TW" 或 "AAPL"）
+ * @returns Yahoo Finance 格式的代號（如 "2330.TW" 或 "AAPL" 或 "DTLA.L"）
  */
-const convertToYahooSymbol = (ticker: string, market?: 'US' | 'TW'): string => {
+const convertToYahooSymbol = (ticker: string, market?: 'US' | 'TW' | 'UK'): string => {
   // 移除可能的 TPE: 前綴
   let cleanTicker = ticker.replace(/^TPE:/i, '').trim();
   
   // 移除 (BAK) 後綴（備份股票代號）
   cleanTicker = cleanTicker.replace(/\(BAK\)/gi, '').trim();
   
+  // 移除可能的 .L 後綴（如果已經有）
+  cleanTicker = cleanTicker.replace(/\.L$/i, '').trim();
+  
   // 判斷市場類型
   if (market === 'TW' || /^\d{4}$/.test(cleanTicker)) {
     // 台股格式：數字代號 + .TW
     return `${cleanTicker}.TW`;
+  } else if (market === 'UK') {
+    // 英國股票格式：代號 + .L (London)
+    return `${cleanTicker}.L`;
   } else if (market === 'US' || /^[A-Z]{1,5}$/.test(cleanTicker)) {
     // 美股格式：保持原樣
     return cleanTicker;
@@ -30,6 +36,11 @@ const convertToYahooSymbol = (ticker: string, market?: 'US' | 'TW'): string => {
   // 如果包含 TPE 或 TW 標記，視為台股
   if (ticker.toUpperCase().includes('TPE') || ticker.toUpperCase().includes('TW')) {
     return `${cleanTicker}.TW`;
+  }
+  
+  // 如果包含 .L 或 LON 標記，視為英國股票
+  if (ticker.toUpperCase().includes('.L') || ticker.toUpperCase().includes('LON')) {
+    return `${cleanTicker}.L`;
   }
   
   // 預設視為美股
@@ -173,6 +184,82 @@ const fetchExchangeRate = async (): Promise<number> => {
 };
 
 /**
+ * 取得指定年份的歷史匯率（年底匯率）
+ * @param year 年份
+ * @returns 歷史匯率
+ */
+const fetchHistoricalExchangeRate = async (year: number): Promise<number> => {
+  try {
+    const endDate = Math.floor(new Date(`${year}-12-31`).getTime() / 1000);
+    const startDate = Math.floor(new Date(`${year}-12-01`).getTime() / 1000);
+    
+    // 使用 USDTWD=X 作為查詢符號
+    const baseUrl = `https://query1.finance.yahoo.com/v8/finance/chart/USDTWD=X?period1=${startDate}&period2=${endDate}&interval=1d`;
+    
+    console.log(`查詢歷史匯率 URL: ${baseUrl.substring(0, 100)}...`);
+    
+    const response = await fetchWithProxy(baseUrl);
+
+    if (!response || !response.ok) {
+      console.warn(`無法取得 ${year} 年歷史匯率，使用當前匯率作為備用`);
+      return await fetchExchangeRate();
+    }
+
+    const data = await response.json();
+    
+    if (!data.chart || !data.chart.result || data.chart.result.length === 0) {
+      console.warn(`Yahoo Finance 返回空匯率數據，使用當前匯率作為備用`);
+      return await fetchExchangeRate();
+    }
+
+    const result = data.chart.result[0];
+    
+    // 檢查是否有錯誤訊息
+    if (result.error) {
+      console.warn(`Yahoo Finance API 匯率錯誤:`, result.error);
+      return await fetchExchangeRate();
+    }
+    
+    const timestamps = result.timestamp || [];
+    const closes = result.indicators?.quote?.[0]?.close || [];
+    
+    console.log(`取得歷史匯率數據：${timestamps.length} 個時間點，${closes.filter((c: any) => c != null).length} 個有效匯率`);
+
+    // 找到最接近年底的匯率
+    if (timestamps.length === 0 || closes.length === 0) {
+      console.warn(`無有效的歷史匯率數據，使用當前匯率作為備用`);
+      return await fetchExchangeRate();
+    }
+
+    // 找到最後一個有效匯率
+    let lastRate = null;
+    for (let i = closes.length - 1; i >= 0; i--) {
+      if (closes[i] != null && closes[i] > 0) {
+        lastRate = closes[i];
+        break;
+      }
+    }
+
+    if (lastRate != null && lastRate > 0) {
+      console.log(`取得 ${year} 年歷史匯率: ${lastRate}`);
+      return lastRate;
+    } else {
+      console.warn(`無法取得有效的歷史匯率，使用當前匯率作為備用`);
+      return await fetchExchangeRate();
+    }
+  } catch (error) {
+    console.error(`取得 ${year} 年歷史匯率時發生錯誤:`, error);
+    // 發生錯誤時，嘗試使用當前匯率作為備用
+    try {
+      return await fetchExchangeRate();
+    } catch (fallbackError) {
+      console.error('取得備用匯率也失敗:', fallbackError);
+      return 31.5; // 最終預設匯率
+    }
+  }
+};
+
+/**
  * 批次取得多個股票的即時價格
  * @param tickers 股票代號陣列（格式可以是 "TPE:2330" 或 "AAPL"）
  * @param markets 可選的市場類型陣列，與 tickers 對應
@@ -180,7 +267,7 @@ const fetchExchangeRate = async (): Promise<number> => {
  */
 export const fetchCurrentPrices = async (
   tickers: string[],
-  markets?: ('US' | 'TW')[]
+  markets?: ('US' | 'TW' | 'UK')[]
 ): Promise<{ prices: Record<string, PriceData>, exchangeRate: number }> => {
   try {
     // 轉換所有代號為 Yahoo Finance 格式
@@ -225,7 +312,7 @@ export const fetchCurrentPrices = async (
 export const fetchHistoricalYearEndData = async (
   year: number,
   tickers: string[],
-  markets?: ('US' | 'TW')[]
+  markets?: ('US' | 'TW' | 'UK')[]
 ): Promise<{ prices: Record<string, number>, exchangeRate: number }> => {
   try {
     const endDate = Math.floor(new Date(`${year}-12-31`).getTime() / 1000);
@@ -310,8 +397,8 @@ export const fetchHistoricalYearEndData = async (
     
     console.log(`歷史股價查詢結果:`, result);
 
-    // 取得歷史匯率（簡化處理，使用當前匯率作為備用）
-    const exchangeRate = await fetchExchangeRate();
+    // 取得歷史匯率（查詢指定年份的歷史匯率）
+    const exchangeRate = await fetchHistoricalExchangeRate(year);
 
     return {
       prices: result,
