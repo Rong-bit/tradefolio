@@ -308,8 +308,8 @@ export const generateAdvancedChartData = (
              
             const val = tx.amount !== undefined ? tx.amount : baseVal;
             let valTWD = 0;
-            // UK 市場也用 USD 匯率（因為是用美金買的）
-            if (tx.market === Market.US || tx.market === Market.UK) valTWD = val * exchangeRate;
+            // UK 和 JP 市場也用 USD 匯率（因為是用美金買的）
+            if (tx.market === Market.US || tx.market === Market.UK || tx.market === Market.JP) valTWD = val * exchangeRate;
             else valTWD = val;
              
              if (tx.type === TransactionType.TRANSFER_IN) cumulativeNetInvestedTWD += valTWD;
@@ -382,8 +382,8 @@ export const generateAdvancedChartData = (
                       hasMissingPrices = true;
                   }
                   
-                  // UK 市場也用 USD 匯率
-                  if (market === Market.US || market === Market.UK) {
+                  // UK 和 JP 市場也用 USD 匯率
+                  if (market === Market.US || market === Market.UK || market === Market.JP) {
                       stockValueTWD += qty * price * histRate;
                   } else {
                       // TWD: Round the value
@@ -488,8 +488,8 @@ export const calculateAssetAllocation = (
   let totalValue = cashBalanceTWD;
 
   holdings.forEach(h => {
-    // UK 市場也用 USD 匯率
-    const valTWD = (h.market === Market.US || h.market === Market.UK) ? h.currentValue * exchangeRate : h.currentValue;
+    // UK 和 JP 市場也用 USD 匯率
+    const valTWD = (h.market === Market.US || h.market === Market.UK || h.market === Market.JP) ? h.currentValue * exchangeRate : h.currentValue;
     if (!tickerMap[h.ticker]) tickerMap[h.ticker] = 0;
     tickerMap[h.ticker] += valTWD;
     totalValue += valTWD;
