@@ -358,7 +358,7 @@ const App: React.FC = () => {
     const holdingKeys = holdingsToUse.map((h: Holding) => ({ market: h.market, ticker: h.ticker, key: `${h.market}-${h.ticker}` }));
     
     // 建立 ticker 到 market 的對應關係，同時建立原始 ticker 到查詢 ticker 的映射
-    const tickerMarketMap = new Map<string, 'US' | 'TW' | 'UK'>();
+    const tickerMarketMap = new Map<string, 'US' | 'TW' | 'UK' | 'JP'>();
     const tickerToQueryTickerMap = new Map<string, string>(); // 原始 ticker -> 查詢用的 ticker
     
     holdingKeys.forEach((h: { market: Market, ticker: string, key: string }) => {
@@ -370,9 +370,10 @@ const App: React.FC = () => {
         queryTicker = `TPE:${queryTicker}`;
       }
       // 將市場類型映射為字符串
-      let marketStr: 'US' | 'TW' | 'UK' = 'US';
+      let marketStr: 'US' | 'TW' | 'UK' | 'JP' = 'US';
       if (h.market === Market.TW) marketStr = 'TW';
       else if (h.market === Market.UK) marketStr = 'UK';
+      else if (h.market === Market.JP) marketStr = 'JP';
       tickerMarketMap.set(queryTicker, marketStr);
       tickerToQueryTickerMap.set(h.key, queryTicker); // 儲存映射關係
     });
@@ -491,8 +492,8 @@ const App: React.FC = () => {
     });
 
     const stockValueTWD = baseHoldings.reduce((sum: number, h: Holding) => {
-      // UK 市場股票也用 USD 匯率（因為是用美金買的）
-      if (h.market === Market.US || h.market === Market.UK) return sum + h.currentValue * exchangeRate;
+      // UK 和 JP 市場股票也用 USD 匯率（因為是用美金買的）
+      if (h.market === Market.US || h.market === Market.UK || h.market === Market.JP) return sum + h.currentValue * exchangeRate;
       return sum + h.currentValue; // TW
     }, 0);
     const cashValueTWD = computedAccounts.reduce((sum: number, a: Account) => sum + (a.currency === Currency.USD ? a.balance * exchangeRate : a.balance), 0);
@@ -504,15 +505,15 @@ const App: React.FC = () => {
     
     const accumulatedCashDividendsTWD = transactions.filter(t => t.type === TransactionType.CASH_DIVIDEND).reduce((sum, t) => {
         const amt = t.amount || (t.price * t.quantity);
-        // UK 市場也用 USD 匯率
-        if (t.market === Market.US || t.market === Market.UK) return sum + amt * exchangeRate;
+        // UK 和 JP 市場也用 USD 匯率
+        if (t.market === Market.US || t.market === Market.UK || t.market === Market.JP) return sum + amt * exchangeRate;
         return sum + amt; // TW
     }, 0);
 
     const accumulatedStockDividendsTWD = transactions.filter(t => t.type === TransactionType.DIVIDEND).reduce((sum, t) => {
         const amt = t.amount || (t.price * t.quantity);
-        // UK 市場也用 USD 匯率
-        if (t.market === Market.US || t.market === Market.UK) return sum + amt * exchangeRate;
+        // UK 和 JP 市場也用 USD 匯率
+        if (t.market === Market.US || t.market === Market.UK || t.market === Market.JP) return sum + amt * exchangeRate;
         return sum + amt; // TW
     }, 0);
 
@@ -537,8 +538,8 @@ const App: React.FC = () => {
   const holdings = useMemo(() => {
     const totalAssets = summary.totalValueTWD + summary.cashBalanceTWD;
     return baseHoldings.map((h: Holding) => {
-        // UK 市場也用 USD 匯率
-        const valTwd = (h.market === Market.US || h.market === Market.UK) ? h.currentValue * exchangeRate : h.currentValue;
+        // UK 和 JP 市場也用 USD 匯率
+        const valTwd = (h.market === Market.US || h.market === Market.UK || h.market === Market.JP) ? h.currentValue * exchangeRate : h.currentValue;
         return {
             ...h,
             weight: totalAssets > 0 ? (valTwd / totalAssets) * 100 : 0
