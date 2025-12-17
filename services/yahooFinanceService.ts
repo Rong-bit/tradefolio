@@ -95,12 +95,23 @@ const fetchWithProxy = async (url: string): Promise<Response | null> => {
             const text = await response.text();
             // 檢查是否為有效的 JSON
             if (!text.trim().startsWith('{') && !text.trim().startsWith('[')) {
+              // 檢查是否為限流錯誤
+              if (text.includes('Too Many Requests') || text.includes('429')) {
+                console.warn(`代理服務限流 (Too Many Requests)，跳過此代理`);
+                continue;
+              }
               console.warn(`allorigins.win 返回非 JSON 響應: ${text.substring(0, 100)}...`);
               continue;
             }
             const jsonData = JSON.parse(text);
             // allorigins.win 的 get 方法返回格式：{ contents: "...", status: {...} }
             if (jsonData.contents) {
+              // 檢查 contents 中是否包含限流錯誤
+              if (typeof jsonData.contents === 'string' && 
+                  (jsonData.contents.includes('Too Many Requests') || jsonData.contents.includes('429'))) {
+                console.warn(`代理服務限流 (Too Many Requests)，跳過此代理`);
+                continue;
+              }
               // 創建一個新的 Response 對象，包含解析後的內容
               return new Response(jsonData.contents, {
                 status: 200,
@@ -119,6 +130,11 @@ const fetchWithProxy = async (url: string): Promise<Response | null> => {
         // 其他代理服務直接返回響應
         return response;
       } else {
+        // 檢查是否為限流錯誤（429）
+        if (response.status === 429) {
+          console.warn(`代理服務限流 (429 Too Many Requests): ${proxyUrl.substring(0, 60)}...`);
+          continue;
+        }
         // 記錄非 200 狀態碼（特別是 404 表示服務不可用）
         if (response.status === 404) {
           console.warn(`代理服務不可用 (404): ${proxyUrl.substring(0, 60)}...`);
@@ -413,14 +429,20 @@ export const fetchCurrentPrices = async (
     if (twAndUsStocks.length > 0) {
       console.log(`第一階段：查詢 ${twAndUsStocks.length} 個台股和美股`);
       
-      const twAndUsPromises = twAndUsStocks.map(async (info) => {
+      // 串行處理請求，避免觸發限流（每個請求間隔 1.5 秒）
+      const twAndUsResults = [];
+      for (let i = 0; i < twAndUsStocks.length; i++) {
+        const info = twAndUsStocks[i];
         const yahooSymbol = convertToYahooSymbol(info.originalTicker, info.market);
         console.log(`即時股價查詢：${info.originalTicker} (市場: ${info.market}) -> ${yahooSymbol}`);
         const priceData = await fetchSingleStockPrice(yahooSymbol);
-        return { info, priceData };
-      });
-
-      const twAndUsResults = await Promise.all(twAndUsPromises);
+        twAndUsResults.push({ info, priceData });
+        
+        // 如果不是最後一個請求，等待 1.5 秒再發送下一個
+        if (i < twAndUsStocks.length - 1) {
+          await new Promise(resolve => setTimeout(resolve, 1500));
+        }
+      }
 
       // 處理查詢結果
       twAndUsResults.forEach(({ info, priceData }) => {
@@ -449,15 +471,21 @@ export const fetchCurrentPrices = async (
     if (finalRemainingStocks.length > 0) {
       console.log(`第二階段：查詢 ${finalRemainingStocks.length} 個剩餘股票（嘗試英股格式）`);
       
-      const ukPromises = finalRemainingStocks.map(async (info) => {
+      // 串行處理請求，避免觸發限流（每個請求間隔 1.5 秒）
+      const ukResults = [];
+      for (let i = 0; i < finalRemainingStocks.length; i++) {
+        const info = finalRemainingStocks[i];
         // 嘗試以英股格式查詢
         const yahooSymbol = convertToYahooSymbol(info.originalTicker, 'UK');
         console.log(`即時股價查詢（英股格式）：${info.originalTicker} -> ${yahooSymbol}`);
         const priceData = await fetchSingleStockPrice(yahooSymbol);
-        return { info, priceData };
-      });
-
-      const ukResults = await Promise.all(ukPromises);
+        ukResults.push({ info, priceData });
+        
+        // 如果不是最後一個請求，等待 1.5 秒再發送下一個
+        if (i < finalRemainingStocks.length - 1) {
+          await new Promise(resolve => setTimeout(resolve, 1500));
+        }
+      }
 
       // 處理查詢結果
       ukResults.forEach(({ info, priceData }) => {
