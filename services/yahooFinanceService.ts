@@ -279,15 +279,19 @@ export const fetchHistoricalYearEndData = async (
       const price = historicalPrices[index];
       if (price != null && price > 0) {
         result[originalTicker] = price;
+        console.log(`儲存歷史股價: ${originalTicker} = ${price}`);
         // 同時支援不帶 TPE: 前綴的 key（用於向後兼容）
         const cleanTicker = originalTicker.replace(/^TPE:/i, '');
         if (cleanTicker !== originalTicker) {
           result[cleanTicker] = price;
+          console.log(`同時儲存: ${cleanTicker} = ${price}`);
         }
       } else {
-        console.warn(`無法取得 ${originalTicker} (${yahooSymbols[index]}) 的歷史股價`);
+        console.warn(`無法取得 ${originalTicker} (${yahooSymbols[index]}) 的歷史股價，價格: ${price}`);
       }
     });
+    
+    console.log(`歷史股價查詢結果:`, result);
 
     // 取得歷史匯率（簡化處理，使用當前匯率作為備用）
     const exchangeRate = await fetchExchangeRate();
