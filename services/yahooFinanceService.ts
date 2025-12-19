@@ -24,8 +24,8 @@ const convertToYahooSymbol = (ticker: string, market?: 'US' | 'TW' | 'UK' | 'JP'
   // 移除可能的 .T 後綴（如果已經有）
   cleanTicker = cleanTicker.replace(/\.T$/i, '').trim();
   
-  // 判斷市場類型（優先使用明確指定的 market 參數）
-  if (market === 'TW') {
+  // 判斷市場類型
+  if (market === 'TW' || /^\d{4}$/.test(cleanTicker)) {
     // 台股格式：數字代號 + .TW
     return `${cleanTicker}.TW`;
   } else if (market === 'UK') {
@@ -34,17 +34,8 @@ const convertToYahooSymbol = (ticker: string, market?: 'US' | 'TW' | 'UK' | 'JP'
   } else if (market === 'JP') {
     // 日本股票格式：代號 + .T (Tokyo)
     return `${cleanTicker}.T`;
-  } else if (market === 'US') {
+  } else if (market === 'US' || /^[A-Z]{1,5}$/.test(cleanTicker)) {
     // 美股格式：保持原樣
-    return cleanTicker;
-  }
-  
-  // 如果 market 未指定，根據 ticker 格式推斷市場類型
-  if (/^\d{4}$/.test(cleanTicker)) {
-    // 4 位數字：預設視為台股（但這可能不準確，建議明確指定 market）
-    return `${cleanTicker}.TW`;
-  } else if (/^[A-Z]{1,5}$/.test(cleanTicker)) {
-    // 1-5 個大寫字母：預設視為美股
     return cleanTicker;
   }
   
@@ -89,7 +80,7 @@ const fetchWithProxy = async (url: string): Promise<Response | null> => {
     try {
       // 使用 AbortController 實現超時（兼容性更好）
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 秒超時
+      const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 秒超時
 
       const response = await fetch(proxyUrl, {
         method: 'GET',
@@ -144,7 +135,7 @@ const fetchWithProxy = async (url: string): Promise<Response | null> => {
  * 取得單一股票的即時價格資訊（帶重試機制）
  */
 const fetchSingleStockPrice = async (symbol: string, retryCount: number = 0): Promise<PriceData | null> => {
-  const maxRetries = 2; // 最多重試 2 次
+  const maxRetries = 3; // 最多重試 3 次
   const retryDelay = 3000; // 重試延遲 3 秒
   
   try {
@@ -155,9 +146,9 @@ const fetchSingleStockPrice = async (symbol: string, retryCount: number = 0): Pr
     const response = await fetchWithProxy(baseUrl);
 
     if (!response || !response.ok) {
-      // 如果是速率限制錯誤且還有重試機會，則重試
+      // 如果是速率限制錯誤（429）或超時（408），且還有重試機會，則重試
       if ((response?.status === 429 || response?.status === 408) && retryCount < maxRetries) {
-        console.warn(`取得 ${symbol} 股價時遇到速率限制，等待 ${retryDelay}ms 後重試 (${retryCount + 1}/${maxRetries})...`);
+        console.warn(`取得 ${symbol} 股價時遇到速率限制 (HTTP ${response?.status})，等待 ${retryDelay / 1000} 秒後重試 (${retryCount + 1}/${maxRetries})...`);
         await new Promise(resolve => setTimeout(resolve, retryDelay));
         return fetchSingleStockPrice(symbol, retryCount + 1);
       }
@@ -187,12 +178,12 @@ const fetchSingleStockPrice = async (symbol: string, retryCount: number = 0): Pr
         // 如果是速率限制錯誤且還有重試機會，則重試
         if (retryCount < maxRetries) {
           const errorPreview = text.substring(0, 200);
-          console.warn(`取得 ${symbol} 股價時遇到速率限制: ${errorPreview}，等待 ${retryDelay}ms 後重試 (${retryCount + 1}/${maxRetries})...`);
+          console.warn(`取得 ${symbol} 股價時遇到速率限制: ${errorPreview}，等待 ${retryDelay / 1000} 秒後重試 (${retryCount + 1}/${maxRetries})...`);
           await new Promise(resolve => setTimeout(resolve, retryDelay));
           return fetchSingleStockPrice(symbol, retryCount + 1);
         }
         const errorPreview = text.substring(0, 200);
-        console.error(`取得 ${symbol} 股價時發生錯誤: 收到速率限制錯誤。內容: ${errorPreview}`);
+        console.error(`取得 ${symbol} 股價時發生錯誤: 收到速率限制錯誤（已重試 ${maxRetries} 次）。內容: ${errorPreview}`);
         return null;
       }
       
@@ -265,9 +256,12 @@ const fetchSingleStockPrice = async (symbol: string, retryCount: number = 0): Pr
 };
 
 /**
- * 取得 USD 對 TWD 的即時匯率
+ * 取得 USD 對 TWD 的即時匯率（帶重試機制）
  */
-const fetchExchangeRate = async (): Promise<number> => {
+const fetchExchangeRate = async (retryCount: number = 0): Promise<number> => {
+  const maxRetries = 3; // 最多重試 3 次
+  const retryDelay = 3000; // 重試延遲 3 秒
+  
   try {
     // 使用 USDTWD=X 作為查詢符號
     const baseUrl = `https://query1.finance.yahoo.com/v8/finance/chart/USDTWD=X?interval=1d&range=1d`;
@@ -275,6 +269,12 @@ const fetchExchangeRate = async (): Promise<number> => {
     const response = await fetchWithProxy(baseUrl);
 
     if (!response || !response.ok) {
+      // 如果是速率限制錯誤（429）或超時（408），且還有重試機會，則重試
+      if ((response?.status === 429 || response?.status === 408) && retryCount < maxRetries) {
+        console.warn(`取得匯率時遇到速率限制 (HTTP ${response?.status})，等待 ${retryDelay / 1000} 秒後重試 (${retryCount + 1}/${maxRetries})...`);
+        await new Promise(resolve => setTimeout(resolve, retryDelay));
+        return fetchExchangeRate(retryCount + 1);
+      }
       console.error('無法取得匯率資訊');
       return 31.5; // 預設匯率
     }
@@ -292,11 +292,28 @@ const fetchExchangeRate = async (): Promise<number> => {
         return 31.5; // 預設匯率
       }
       
-      // 檢查是否為 HTML 錯誤頁面或純文本錯誤訊息
-      if (text.trim().startsWith('Edge:') || text.trim().startsWith('Too many') || 
-          text.includes('<!DOCTYPE') || text.includes('<html')) {
+      // 檢查是否為速率限制錯誤
+      const isRateLimitError = text.trim().startsWith('Edge:') || 
+                               text.trim().startsWith('Too many') || 
+                               text.trim().startsWith('Too Many');
+      
+      if (isRateLimitError) {
+        // 如果是速率限制錯誤且還有重試機會，則重試
+        if (retryCount < maxRetries) {
+          const errorPreview = text.substring(0, 200);
+          console.warn(`取得匯率時遇到速率限制: ${errorPreview}，等待 ${retryDelay / 1000} 秒後重試 (${retryCount + 1}/${maxRetries})...`);
+          await new Promise(resolve => setTimeout(resolve, retryDelay));
+          return fetchExchangeRate(retryCount + 1);
+        }
         const errorPreview = text.substring(0, 200);
-        console.error(`取得匯率時發生錯誤: 收到錯誤訊息而非 JSON。內容: ${errorPreview}`);
+        console.error(`取得匯率時發生錯誤: 收到速率限制錯誤（已重試 ${maxRetries} 次）。內容: ${errorPreview}`);
+        return 31.5; // 預設匯率
+      }
+      
+      // 檢查是否為 HTML 錯誤頁面
+      if (text.includes('<!DOCTYPE') || text.includes('<html')) {
+        const errorPreview = text.substring(0, 200);
+        console.error(`取得匯率時發生錯誤: 收到 HTML 錯誤頁面。內容: ${errorPreview}`);
         return 31.5; // 預設匯率
       }
     } catch (textError: any) {
@@ -642,9 +659,9 @@ export const fetchCurrentPrices = async (
       return convertToYahooSymbol(ticker, market);
     });
 
-    // 批次處理請求，避免速率限制
-    // 逐個處理請求，每個請求之間延遲 800ms，避免觸發速率限制
-    const delayMs = 800;
+    // 逐個處理請求，避免速率限制
+    // 每個請求之間延遲 1500ms（1.5秒），避免觸發 Cloudflare Edge 的速率限制
+    const delayMs = 1500;
     const prices: (PriceData | null)[] = [];
     
     // 逐個處理每個股票，避免同時發送太多請求
@@ -828,39 +845,33 @@ const fetchAnnualizedReturnFromStockAnalysis = async (
     
     // StockAnalysis.com 的 URL 格式（根據市場類型）：
     // - 台股：https://stockanalysis.com/quote/tpe/0050/
-    // - 英國：https://stockanalysis.com/quote/lon/DTLA/（倫敦交易所）
+    // - 英國：https://stockanalysis.com/quote/swx/VWRA/（或其他交易所格式）
     // - 日本：https://stockanalysis.com/quote/tyo/9984/
     // - 美國：先嘗試 /etf/VT/，失敗後嘗試 /stocks/VT/
     let urls: string[] = [];
     
-    // 優先使用明確指定的 market 參數
-    if (market === 'TW') {
+    if (market === 'TW' || /^\d{4}$/.test(cleanTicker)) {
       // 台灣市場：使用 /quote/tpe/0050/ 格式
       urls = [`https://stockanalysis.com/quote/tpe/${cleanTicker}/`];
     } else if (market === 'UK') {
-      // 英國市場：使用 /quote/lon/ 格式（倫敦證券交易所）
-      urls = [`https://stockanalysis.com/quote/lon/${cleanTicker}/`];
+      // 英國市場：使用 /quote/swx/VWRA/ 格式（或其他英國交易所格式）
+      // 注意：SWX 實際上是瑞士交易所，但根據用戶要求使用此格式
+      urls = [`https://stockanalysis.com/quote/swx/${cleanTicker}/`];
     } else if (market === 'JP') {
       // 日本市場：使用 /quote/tyo/9984/ 格式（TYO = Tokyo Stock Exchange）
       urls = [`https://stockanalysis.com/quote/tyo/${cleanTicker}/`];
-    } else if (market === 'US') {
+    } else if (market === 'US' || market === undefined) {
       // 美國市場：先嘗試 ETF，如果失敗再嘗試 stocks
       urls = [
         `https://stockanalysis.com/etf/${cleanTicker}/`,
         `https://stockanalysis.com/stocks/${cleanTicker}/`
       ];
     } else {
-      // market 未指定時，根據 ticker 格式推斷
-      if (/^\d{4}$/.test(cleanTicker)) {
-        // 4 位數字：預設視為台股（但這可能不準確，建議明確指定 market）
-        urls = [`https://stockanalysis.com/quote/tpe/${cleanTicker}/`];
-      } else {
-        // 其他格式：預設視為美股，先嘗試 ETF，如果失敗再嘗試 stocks
-        urls = [
-          `https://stockanalysis.com/etf/${cleanTicker}/`,
-          `https://stockanalysis.com/stocks/${cleanTicker}/`
-        ];
-      }
+      // 其他市場：先嘗試 ETF，如果失敗再嘗試 stocks
+      urls = [
+        `https://stockanalysis.com/etf/${cleanTicker}/`,
+        `https://stockanalysis.com/stocks/${cleanTicker}/`
+      ];
     }
     
     // StockAnalysis.com 頁面中，年化報酬率的格式：
