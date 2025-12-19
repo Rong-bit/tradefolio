@@ -128,8 +128,17 @@ const fetchWithProxy = async (url: string, proxyIndex: number = 0): Promise<Resp
         return response;
       } else {
         // 記錄非成功的響應
+        // 500 錯誤通常是代理服務器內部錯誤，會自動切換到下一個代理
+        const isServerError = response.status >= 500;
         lastError = new Error(`HTTP ${response.status}: ${response.statusText}`);
-        console.warn(`[調試] 代理服務 ${proxyName} 返回錯誤 ${response.status}，嘗試下一個...`);
+        
+        if (isServerError) {
+          // 500 錯誤是代理服務器問題，會自動切換代理，不需要顯示警告
+          console.debug(`[調試] 代理服務 ${proxyName} 返回 ${response.status} 錯誤（代理服務器問題，會自動切換代理）`);
+        } else {
+          // 其他 HTTP 錯誤（如 429, 403 等）需要記錄
+          console.warn(`[調試] 代理服務 ${proxyName} 返回錯誤 ${response.status}，嘗試下一個...`);
+        }
         // 繼續嘗試下一個代理
         continue;
       }
@@ -709,8 +718,11 @@ export const fetchCurrentPrices = async (
 ): Promise<{ prices: Record<string, PriceData>, exchangeRate: number, jpyExchangeRate?: number }> => {
   try {
     console.log(`[調試] ===== 開始批次取得股價與匯率 =====`);
-    console.log(`[調試] 注意：瀏覽器可能顯示 CORS 錯誤，這是正常的。系統會自動切換代理服務。`);
-    console.log(`[調試] 請查看下方日誌中的 ✓ 標記，確認哪些請求成功。`);
+    console.log(`[調試] 📌 重要提示：`);
+    console.log(`[調試]   - 瀏覽器可能顯示 CORS 錯誤或 500 錯誤，這是正常的`);
+    console.log(`[調試]   - 這些錯誤表示代理服務暫時不可用，系統會自動切換到其他代理`);
+    console.log(`[調試]   - 請查看下方日誌中的 ✓ 標記，確認哪些請求成功`);
+    console.log(`[調試]   - 最終統計會顯示成功取得的數據數量`);
     
     // 轉換所有代號為 Yahoo Finance 格式
     const yahooSymbols = tickers.map((ticker, index) => {
@@ -737,10 +749,16 @@ export const fetchCurrentPrices = async (
 
     // 建立結果物件，使用原始 ticker 作為 key
     const result: Record<string, PriceData> = {};
+    const successTickers: string[] = [];
+    const failedTickers: string[] = [];
+    
     tickers.forEach((originalTicker, index) => {
       const priceData = prices[index];
       if (priceData) {
         result[originalTicker] = priceData;
+        successTickers.push(originalTicker);
+      } else {
+        failedTickers.push(originalTicker);
       }
     });
 
@@ -757,6 +775,12 @@ export const fetchCurrentPrices = async (
     const totalCount = tickers.length;
     console.log(`[調試] ===== 股價與匯率更新完成 =====`);
     console.log(`[調試] 成功取得股價: ${successCount}/${totalCount}`);
+    if (successTickers.length > 0) {
+      console.log(`[調試] ✓ 成功: ${successTickers.join(', ')}`);
+    }
+    if (failedTickers.length > 0) {
+      console.log(`[調試] ✗ 失敗: ${failedTickers.join(', ')}`);
+    }
     console.log(`[調試] 成功取得匯率: ${exchangeRate > 0 ? '是' : '否'} (${exchangeRate.toFixed(4)})`);
     if (hasJP) {
       console.log(`[調試] 成功取得日幣匯率: ${jpyExchangeRate && jpyExchangeRate > 0 ? '是' : '否'} (${jpyExchangeRate?.toFixed(4) || 'N/A'})`);
