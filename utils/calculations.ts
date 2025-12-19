@@ -266,7 +266,8 @@ export const generateAdvancedChartData = (
   accounts: Account[],
   currentTotalValueTWD: number,
   exchangeRate: number,
-  historicalData?: HistoricalData // New Parameter
+  historicalData?: HistoricalData, // New Parameter
+  jpyExchangeRate?: number // JPY to TWD exchange rate
 ): ChartDataPoint[] => {
   const years = new Set<string>();
   const allDates = [...transactions.map(t => t.date), ...cashFlows.map(c => c.date)];
@@ -308,9 +309,15 @@ export const generateAdvancedChartData = (
              
             const val = tx.amount !== undefined ? tx.amount : baseVal;
             let valTWD = 0;
-            // UK 和 JP 市場也用 USD 匯率（因為是用美金買的）
-            if (tx.market === Market.US || tx.market === Market.UK || tx.market === Market.JP) valTWD = val * exchangeRate;
-            else valTWD = val;
+            // 根據市場類型使用對應的匯率
+            if (tx.market === Market.US || tx.market === Market.UK) {
+              valTWD = val * exchangeRate;
+            } else if (tx.market === Market.JP) {
+              // 日本市場使用日幣匯率
+              valTWD = jpyExchangeRate ? val * jpyExchangeRate : val * exchangeRate; // 如果沒有日幣匯率，回退到美元匯率
+            } else {
+              valTWD = val;
+            }
              
              if (tx.type === TransactionType.TRANSFER_IN) cumulativeNetInvestedTWD += valTWD;
              else cumulativeNetInvestedTWD -= valTWD;
@@ -339,6 +346,7 @@ export const generateAdvancedChartData = (
           // YES! We have historical prices
           const histPrices = historicalData[yearKey].prices;
           const histRate = historicalData[yearKey].exchangeRate || exchangeRate;
+          const histJpyRate = historicalData[yearKey].jpyExchangeRate || jpyExchangeRate;
           
           const yearEndDate = new Date(`${y}-12-31`);
           const { holdings, cashBalances } = getPortfolioStateAtDate(yearEndDate, transactions, cashFlows, accounts);
@@ -382,9 +390,13 @@ export const generateAdvancedChartData = (
                       hasMissingPrices = true;
                   }
                   
-                  // UK 和 JP 市場也用 USD 匯率
-                  if (market === Market.US || market === Market.UK || market === Market.JP) {
+                  // 根據市場類型使用對應的匯率
+                  if (market === Market.US || market === Market.UK) {
                       stockValueTWD += qty * price * histRate;
+                  } else if (market === Market.JP) {
+                      // 日本市場使用日幣匯率
+                      const rate = histJpyRate || histRate; // 如果沒有日幣匯率，回退到美元匯率
+                      stockValueTWD += qty * price * rate;
                   } else {
                       // TWD: Round the value
                       stockValueTWD += Math.round(qty * price);
@@ -396,8 +408,15 @@ export const generateAdvancedChartData = (
           Object.entries(cashBalances).forEach(([accId, bal]) => {
               const acc = accounts.find(a => a.id === accId);
               if (acc) {
-                  if (acc.currency === Currency.USD) cashValueTWD += bal * histRate;
-                  else cashValueTWD += bal;
+                  if (acc.currency === Currency.USD) {
+                    cashValueTWD += bal * histRate;
+                  } else if (acc.currency === Currency.JPY) {
+                    // 日幣帳戶使用日幣匯率
+                    const rate = histJpyRate || histRate; // 如果沒有日幣匯率，回退到美元匯率
+                    cashValueTWD += bal * rate;
+                  } else {
+                    cashValueTWD += bal;
+                  }
               }
           });
 
@@ -482,14 +501,23 @@ export const formatCurrency = (val: number, currency: string): string => {
 export const calculateAssetAllocation = (
   holdings: Holding[],
   cashBalanceTWD: number,
-  exchangeRate: number
+  exchangeRate: number,
+  jpyExchangeRate?: number
 ): AssetAllocationItem[] => {
   const tickerMap: Record<string, number> = {};
   let totalValue = cashBalanceTWD;
 
   holdings.forEach(h => {
-    // UK 和 JP 市場也用 USD 匯率
-    const valTWD = (h.market === Market.US || h.market === Market.UK || h.market === Market.JP) ? h.currentValue * exchangeRate : h.currentValue;
+    // 根據市場類型使用對應的匯率
+    let valTWD: number;
+    if (h.market === Market.US || h.market === Market.UK) {
+      valTWD = h.currentValue * exchangeRate;
+    } else if (h.market === Market.JP) {
+      // 日本市場使用日幣匯率
+      valTWD = jpyExchangeRate ? h.currentValue * jpyExchangeRate : h.currentValue * exchangeRate; // 如果沒有日幣匯率，回退到美元匯率
+    } else {
+      valTWD = h.currentValue;
+    }
     if (!tickerMap[h.ticker]) tickerMap[h.ticker] = 0;
     tickerMap[h.ticker] += valTWD;
     totalValue += valTWD;
@@ -564,11 +592,13 @@ export const calculateAccountPerformance = (
   holdings: Holding[],
   cashFlows: CashFlow[],
   transactions: Transaction[],
-  exchangeRate: number
+  exchangeRate: number,
+  jpyExchangeRate?: number
 ): AccountPerformance[] => {
   return accounts.map(acc => {
     const isUSD = acc.currency === Currency.USD;
-    const rate = isUSD ? exchangeRate : 1;
+    const isJPY = acc.currency === Currency.JPY;
+    const rate = isUSD ? exchangeRate : (isJPY ? (jpyExchangeRate || exchangeRate) : 1); // 如果沒有日幣匯率，回退到美元匯率
 
     const cashTWD = acc.balance * rate;
     const accountHoldings = holdings.filter(h => h.accountId === acc.id);
@@ -587,6 +617,8 @@ export const calculateAccountPerformance = (
          let flowRate = 1;
          if (isUSD) {
             flowRate = (cf.exchangeRate && cf.exchangeRate > 0) ? cf.exchangeRate : exchangeRate;
+         } else if (isJPY) {
+            flowRate = (cf.exchangeRate && cf.exchangeRate > 0) ? cf.exchangeRate : (jpyExchangeRate || exchangeRate);
          }
          amountFlowTWD = cf.amount * flowRate;
       }
@@ -622,9 +654,12 @@ export const calculateAccountPerformance = (
           const val = tx.amount !== undefined ? tx.amount : baseVal;
           let valTWD = 0;
           
-          // UK 市場也用 USD 匯率
+          // 根據市場類型使用對應的匯率
           if (tx.market === Market.US || tx.market === Market.UK) {
               valTWD = val * exchangeRate;
+          } else if (tx.market === Market.JP) {
+              // 日本市場使用日幣匯率
+              valTWD = jpyExchangeRate ? val * jpyExchangeRate : val * exchangeRate; // 如果沒有日幣匯率，回退到美元匯率
           } else {
               valTWD = val;
           }
