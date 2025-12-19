@@ -169,6 +169,13 @@ const HistoricalDataModal: React.FC<Props> = ({
                   ? (result.exchangeRate || 30) 
                   : currentRate;
 
+              // 處理日幣匯率
+              const currentJpyRate = prevData.jpyExchangeRate;
+              const shouldUpdateJpyRate = !currentJpyRate || currentJpyRate === 0;
+              const newJpyRate = shouldUpdateJpyRate && result.jpyExchangeRate
+                  ? result.jpyExchangeRate
+                  : currentJpyRate;
+
               // 合併價格數據，確保兩種格式的 key 都能正確對應
               const mergedPrices = { ...prevData.prices };
               console.log(`合併前的價格數據:`, prevData.prices);
@@ -196,7 +203,8 @@ const HistoricalDataModal: React.FC<Props> = ({
                   [selectedYear]: {
                       ...prevData,
                       prices: mergedPrices,
-                      exchangeRate: newRate
+                      exchangeRate: newRate,
+                      jpyExchangeRate: newJpyRate
                   }
               };
           });
