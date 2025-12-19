@@ -71,7 +71,7 @@ const convertToYahooSymbol = (ticker: string, market?: 'US' | 'TW' | 'UK' | 'JP'
 /**
  * 使用 CORS 代理服務取得資料（帶備用方案）
  */
-const fetchWithProxy = async (url: string): Promise<Response | null> => {
+const fetchWithProxy = async (url: string, proxyIndex: number = 0): Promise<Response | null> => {
   // 多個 CORS 代理服務作為備用（按可靠性排序）
   const proxies = [
     `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
@@ -82,12 +82,21 @@ const fetchWithProxy = async (url: string): Promise<Response | null> => {
     url
   ];
 
-  const isDevelopment = (import.meta as any).env?.DEV ?? false;
+  // 從指定的代理索引開始嘗試（用於重試時切換代理）
+  const startIndex = Math.min(proxyIndex, proxies.length - 1);
   let lastError: Error | null = null;
 
-  for (let i = 0; i < proxies.length; i++) {
+  for (let i = startIndex; i < proxies.length; i++) {
     const proxyUrl = proxies[i];
+    const proxyName = i === proxies.length - 1 ? '直接連接' : 
+                     proxyUrl.includes('allorigins') ? 'allorigins' :
+                     proxyUrl.includes('codetabs') ? 'codetabs' :
+                     proxyUrl.includes('corsproxy') ? 'corsproxy' :
+                     proxyUrl.includes('cors-anywhere') ? 'cors-anywhere' : '未知';
+    
     try {
+      console.log(`[調試] 嘗試代理服務 ${i + 1}/${proxies.length}: ${proxyName}`);
+      
       // 使用 AbortController 實現超時（兼容性更好）
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 秒超時
@@ -103,42 +112,44 @@ const fetchWithProxy = async (url: string): Promise<Response | null> => {
       clearTimeout(timeoutId);
 
       if (response.ok) {
-        // 成功時，只在開發模式下顯示使用的代理
-        if (isDevelopment && i > 0) {
-          console.log(`✓ 代理服務成功: ${proxyUrl.substring(0, 60)}...`);
+        // 讀取響應文本以檢查是否為速率限制錯誤
+        const text = await response.clone().text();
+        const isRateLimitError = text.trim().startsWith('Edge:') || 
+                                 text.trim().startsWith('Too many') || 
+                                 text.trim().startsWith('Too Many');
+        
+        if (isRateLimitError) {
+          console.warn(`[調試] 代理服務 ${proxyName} 返回速率限制錯誤，嘗試下一個...`);
+          lastError = new Error(`速率限制: ${text.substring(0, 100)}`);
+          continue;
         }
+        
+        console.log(`[調試] ✓ 成功使用代理服務: ${proxyName}`);
         return response;
       } else {
-        // 記錄非成功的響應（但不顯示錯誤，因為會嘗試下一個代理）
-        // 對於 5xx 錯誤（如 520），也應該嘗試下一個代理
+        // 記錄非成功的響應
         lastError = new Error(`HTTP ${response.status}: ${response.statusText}`);
-        // 只在開發模式下顯示
-        if (isDevelopment) {
-          console.debug(`代理服務 ${i + 1}/${proxies.length} 返回錯誤 ${response.status}，嘗試下一個...`);
-        }
+        console.warn(`[調試] 代理服務 ${proxyName} 返回錯誤 ${response.status}，嘗試下一個...`);
         // 繼續嘗試下一個代理
         continue;
       }
     } catch (error: any) {
-      // 記錄錯誤（但不顯示超時錯誤和 CORS 錯誤，因為會自動嘗試下一個代理）
-      // CORS 錯誤是正常的，系統會自動嘗試下一個代理服務
+      // 記錄錯誤
       if (error.name !== 'AbortError' && !error.message?.includes('CORS') && !error.message?.includes('cors')) {
         lastError = error;
-        // 只在開發模式下顯示詳細的警告訊息
-        if (isDevelopment) {
-          console.debug(`代理服務 ${i + 1}/${proxies.length} 失敗: ${error.message?.substring(0, 50)}...，嘗試下一個...`);
-        }
+        console.warn(`[調試] 代理服務 ${proxyName} 失敗: ${error.message?.substring(0, 50)}...，嘗試下一個...`);
       } else {
         // 對於 CORS 錯誤，靜默處理（這是正常的，會自動嘗試下一個代理）
         lastError = error;
+        console.debug(`[調試] 代理服務 ${proxyName} CORS 錯誤，嘗試下一個...`);
       }
       continue;
     }
   }
 
-  // 所有代理都失敗時，只在開發模式下顯示詳細錯誤
-  if (isDevelopment && lastError) {
-    console.error('所有代理服務均失敗:', lastError.message);
+  // 所有代理都失敗時
+  if (lastError) {
+    console.error(`[調試] ✗ 所有代理服務均失敗: ${lastError.message}`);
   }
 
   return null;
@@ -147,25 +158,29 @@ const fetchWithProxy = async (url: string): Promise<Response | null> => {
 /**
  * 取得單一股票的即時價格資訊（帶重試機制）
  */
-const fetchSingleStockPrice = async (symbol: string, retryCount: number = 0): Promise<PriceData | null> => {
+const fetchSingleStockPrice = async (symbol: string, retryCount: number = 0, proxyIndex: number = 0): Promise<PriceData | null> => {
   const maxRetries = 3; // 最多重試 3 次
-  const retryDelay = 3000; // 重試延遲 3 秒
+  const retryDelay = 5000; // 重試延遲 5 秒（增加延遲時間）
   
   try {
+    console.log(`[調試] 開始取得 ${symbol} 股價 (嘗試 ${retryCount + 1}/${maxRetries + 1})`);
+    
     // 使用 Yahoo Finance 的公開 API
     // 由於 CORS 限制，使用 CORS 代理服務
     const baseUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?interval=1d&range=1d`;
     
-    const response = await fetchWithProxy(baseUrl);
+    // 重試時切換代理服務
+    const response = await fetchWithProxy(baseUrl, proxyIndex);
 
     if (!response || !response.ok) {
       // 如果是速率限制錯誤（429）或超時（408），且還有重試機會，則重試
       if ((response?.status === 429 || response?.status === 408) && retryCount < maxRetries) {
-        console.warn(`取得 ${symbol} 股價時遇到速率限制 (HTTP ${response?.status})，等待 ${retryDelay / 1000} 秒後重試 (${retryCount + 1}/${maxRetries})...`);
+        const nextProxyIndex = (proxyIndex + 1) % 5; // 切換到下一個代理
+        console.warn(`[調試] 取得 ${symbol} 股價時遇到速率限制 (HTTP ${response?.status})，等待 ${retryDelay / 1000} 秒後重試 (${retryCount + 1}/${maxRetries})，切換代理服務...`);
         await new Promise(resolve => setTimeout(resolve, retryDelay));
-        return fetchSingleStockPrice(symbol, retryCount + 1);
+        return fetchSingleStockPrice(symbol, retryCount + 1, nextProxyIndex);
       }
-      console.error(`Yahoo Finance API 錯誤: ${symbol} - ${response?.status || '無法連接'}`);
+      console.error(`[調試] ✗ 取得 ${symbol} 股價失敗: ${response?.status || '無法連接'}`);
       return null;
     }
 
@@ -191,12 +206,13 @@ const fetchSingleStockPrice = async (symbol: string, retryCount: number = 0): Pr
         // 如果是速率限制錯誤且還有重試機會，則重試
         if (retryCount < maxRetries) {
           const errorPreview = text.substring(0, 200);
-          console.warn(`取得 ${symbol} 股價時遇到速率限制: ${errorPreview}，等待 ${retryDelay / 1000} 秒後重試 (${retryCount + 1}/${maxRetries})...`);
+          const nextProxyIndex = (proxyIndex + 1) % 5; // 切換到下一個代理
+          console.warn(`[調試] 取得 ${symbol} 股價時遇到速率限制: ${errorPreview}，等待 ${retryDelay / 1000} 秒後重試 (${retryCount + 1}/${maxRetries})，切換代理服務...`);
           await new Promise(resolve => setTimeout(resolve, retryDelay));
-          return fetchSingleStockPrice(symbol, retryCount + 1);
+          return fetchSingleStockPrice(symbol, retryCount + 1, nextProxyIndex);
         }
         const errorPreview = text.substring(0, 200);
-        console.error(`取得 ${symbol} 股價時發生錯誤: 收到速率限制錯誤（已重試 ${maxRetries} 次）。內容: ${errorPreview}`);
+        console.error(`[調試] ✗ 取得 ${symbol} 股價失敗: 收到速率限制錯誤（已重試 ${maxRetries} 次）。內容: ${errorPreview}`);
         return null;
       }
       
@@ -252,6 +268,8 @@ const fetchSingleStockPrice = async (symbol: string, retryCount: number = 0): Pr
     const finalChange = (change !== undefined && change !== null && !isNaN(change)) ? change : 0;
     const finalChangePercent = (changePercent !== undefined && changePercent !== null && !isNaN(changePercent)) ? changePercent : 0;
     
+    console.log(`[調試] ✓ 成功取得 ${symbol} 股價: ${regularMarketPrice.toFixed(2)} (變動: ${finalChange.toFixed(2)}, ${finalChangePercent.toFixed(2)}%)`);
+    
     return {
       price: regularMarketPrice,
       change: finalChange,
@@ -271,24 +289,28 @@ const fetchSingleStockPrice = async (symbol: string, retryCount: number = 0): Pr
 /**
  * 取得 USD 對 TWD 的即時匯率（帶重試機制）
  */
-const fetchExchangeRate = async (retryCount: number = 0): Promise<number> => {
+const fetchExchangeRate = async (retryCount: number = 0, proxyIndex: number = 0): Promise<number> => {
   const maxRetries = 3; // 最多重試 3 次
-  const retryDelay = 3000; // 重試延遲 3 秒
+  const retryDelay = 5000; // 重試延遲 5 秒（增加延遲時間）
   
   try {
+    console.log(`[調試] 開始取得匯率 USDTWD=X (嘗試 ${retryCount + 1}/${maxRetries + 1})`);
+    
     // 使用 USDTWD=X 作為查詢符號
     const baseUrl = `https://query1.finance.yahoo.com/v8/finance/chart/USDTWD=X?interval=1d&range=1d`;
     
-    const response = await fetchWithProxy(baseUrl);
+    // 重試時切換代理服務
+    const response = await fetchWithProxy(baseUrl, proxyIndex);
 
     if (!response || !response.ok) {
       // 如果是速率限制錯誤（429）或超時（408），且還有重試機會，則重試
       if ((response?.status === 429 || response?.status === 408) && retryCount < maxRetries) {
-        console.warn(`取得匯率時遇到速率限制 (HTTP ${response?.status})，等待 ${retryDelay / 1000} 秒後重試 (${retryCount + 1}/${maxRetries})...`);
+        const nextProxyIndex = (proxyIndex + 1) % 5; // 切換到下一個代理
+        console.warn(`[調試] 取得匯率時遇到速率限制 (HTTP ${response?.status})，等待 ${retryDelay / 1000} 秒後重試 (${retryCount + 1}/${maxRetries})，切換代理服務...`);
         await new Promise(resolve => setTimeout(resolve, retryDelay));
-        return fetchExchangeRate(retryCount + 1);
+        return fetchExchangeRate(retryCount + 1, nextProxyIndex);
       }
-      console.error('無法取得匯率資訊');
+      console.error(`[調試] ✗ 取得匯率失敗: ${response?.status || '無法連接'}，使用預設匯率 31.5`);
       return 31.5; // 預設匯率
     }
 
@@ -314,12 +336,13 @@ const fetchExchangeRate = async (retryCount: number = 0): Promise<number> => {
         // 如果是速率限制錯誤且還有重試機會，則重試
         if (retryCount < maxRetries) {
           const errorPreview = text.substring(0, 200);
-          console.warn(`取得匯率時遇到速率限制: ${errorPreview}，等待 ${retryDelay / 1000} 秒後重試 (${retryCount + 1}/${maxRetries})...`);
+          const nextProxyIndex = (proxyIndex + 1) % 5; // 切換到下一個代理
+          console.warn(`[調試] 取得匯率時遇到速率限制: ${errorPreview}，等待 ${retryDelay / 1000} 秒後重試 (${retryCount + 1}/${maxRetries})，切換代理服務...`);
           await new Promise(resolve => setTimeout(resolve, retryDelay));
-          return fetchExchangeRate(retryCount + 1);
+          return fetchExchangeRate(retryCount + 1, nextProxyIndex);
         }
         const errorPreview = text.substring(0, 200);
-        console.error(`取得匯率時發生錯誤: 收到速率限制錯誤（已重試 ${maxRetries} 次）。內容: ${errorPreview}`);
+        console.error(`[調試] ✗ 取得匯率失敗: 收到速率限制錯誤（已重試 ${maxRetries} 次）。內容: ${errorPreview}，使用預設匯率 31.5`);
         return 31.5; // 預設匯率
       }
       
@@ -350,6 +373,8 @@ const fetchExchangeRate = async (retryCount: number = 0): Promise<number> => {
     const result = data.chart.result[0];
     const meta = result.meta;
     const rate = meta.regularMarketPrice || meta.previousClose || 31.5;
+    
+    console.log(`[調試] ✓ 成功取得匯率 USDTWD=X: ${rate.toFixed(4)}`);
     
     return rate;
   } catch (error: any) {
@@ -702,8 +727,20 @@ export const fetchCurrentPrices = async (
     const hasJP = markets?.some(m => m === 'JP') || false;
     
     // 同時取得匯率
+    console.log(`[調試] 開始取得匯率資訊...`);
     const exchangeRate = await fetchExchangeRate();
     const jpyExchangeRate = hasJP ? await fetchJPYExchangeRate() : undefined;
+
+    // 統計成功取得的數據
+    const successCount = Object.keys(result).length;
+    const totalCount = tickers.length;
+    console.log(`[調試] ===== 股價與匯率更新完成 =====`);
+    console.log(`[調試] 成功取得股價: ${successCount}/${totalCount}`);
+    console.log(`[調試] 成功取得匯率: ${exchangeRate > 0 ? '是' : '否'} (${exchangeRate.toFixed(4)})`);
+    if (hasJP) {
+      console.log(`[調試] 成功取得日幣匯率: ${jpyExchangeRate && jpyExchangeRate > 0 ? '是' : '否'} (${jpyExchangeRate?.toFixed(4) || 'N/A'})`);
+    }
+    console.log(`[調試] =================================`);
 
     return {
       prices: result,
