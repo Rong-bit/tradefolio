@@ -24,8 +24,8 @@ const convertToYahooSymbol = (ticker: string, market?: 'US' | 'TW' | 'UK' | 'JP'
   // 移除可能的 .T 後綴（如果已經有）
   cleanTicker = cleanTicker.replace(/\.T$/i, '').trim();
   
-  // 判斷市場類型
-  if (market === 'TW' || /^\d{4}$/.test(cleanTicker)) {
+  // 判斷市場類型（優先使用明確指定的 market 參數）
+  if (market === 'TW') {
     // 台股格式：數字代號 + .TW
     return `${cleanTicker}.TW`;
   } else if (market === 'UK') {
@@ -34,8 +34,17 @@ const convertToYahooSymbol = (ticker: string, market?: 'US' | 'TW' | 'UK' | 'JP'
   } else if (market === 'JP') {
     // 日本股票格式：代號 + .T (Tokyo)
     return `${cleanTicker}.T`;
-  } else if (market === 'US' || /^[A-Z]{1,5}$/.test(cleanTicker)) {
+  } else if (market === 'US') {
     // 美股格式：保持原樣
+    return cleanTicker;
+  }
+  
+  // 如果 market 未指定，根據 ticker 格式推斷市場類型
+  if (/^\d{4}$/.test(cleanTicker)) {
+    // 4 位數字：預設視為台股（但這可能不準確，建議明確指定 market）
+    return `${cleanTicker}.TW`;
+  } else if (/^[A-Z]{1,5}$/.test(cleanTicker)) {
+    // 1-5 個大寫字母：預設視為美股
     return cleanTicker;
   }
   
@@ -824,7 +833,8 @@ const fetchAnnualizedReturnFromStockAnalysis = async (
     // - 美國：先嘗試 /etf/VT/，失敗後嘗試 /stocks/VT/
     let urls: string[] = [];
     
-    if (market === 'TW' || /^\d{4}$/.test(cleanTicker)) {
+    // 優先使用明確指定的 market 參數
+    if (market === 'TW') {
       // 台灣市場：使用 /quote/tpe/0050/ 格式
       urls = [`https://stockanalysis.com/quote/tpe/${cleanTicker}/`];
     } else if (market === 'UK') {
@@ -834,18 +844,24 @@ const fetchAnnualizedReturnFromStockAnalysis = async (
     } else if (market === 'JP') {
       // 日本市場：使用 /quote/tyo/9984/ 格式（TYO = Tokyo Stock Exchange）
       urls = [`https://stockanalysis.com/quote/tyo/${cleanTicker}/`];
-    } else if (market === 'US' || market === undefined) {
+    } else if (market === 'US') {
       // 美國市場：先嘗試 ETF，如果失敗再嘗試 stocks
       urls = [
         `https://stockanalysis.com/etf/${cleanTicker}/`,
         `https://stockanalysis.com/stocks/${cleanTicker}/`
       ];
     } else {
-      // 其他市場：先嘗試 ETF，如果失敗再嘗試 stocks
-      urls = [
-        `https://stockanalysis.com/etf/${cleanTicker}/`,
-        `https://stockanalysis.com/stocks/${cleanTicker}/`
-      ];
+      // market 未指定時，根據 ticker 格式推斷
+      if (/^\d{4}$/.test(cleanTicker)) {
+        // 4 位數字：預設視為台股（但這可能不準確，建議明確指定 market）
+        urls = [`https://stockanalysis.com/quote/tpe/${cleanTicker}/`];
+      } else {
+        // 其他格式：預設視為美股，先嘗試 ETF，如果失敗再嘗試 stocks
+        urls = [
+          `https://stockanalysis.com/etf/${cleanTicker}/`,
+          `https://stockanalysis.com/stocks/${cleanTicker}/`
+        ];
+      }
     }
     
     // StockAnalysis.com 頁面中，年化報酬率的格式：
