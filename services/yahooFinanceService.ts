@@ -148,14 +148,37 @@ const fetchSingleStockPrice = async (symbol: string): Promise<PriceData | null> 
     }
 
     // 先讀取響應文本，檢查是否為有效的 JSON
-    const text = await response.text();
+    let text: string;
     let data: any;
     
     try {
+      text = await response.text();
+      
+      // 檢查響應是否為錯誤訊息（如 "Edge: Too many requests"）
+      if (!text || text.trim().length === 0) {
+        console.error(`取得 ${symbol} 股價時發生錯誤: 響應為空`);
+        return null;
+      }
+      
+      // 檢查是否為 HTML 錯誤頁面或純文本錯誤訊息
+      if (text.trim().startsWith('Edge:') || text.trim().startsWith('Too many') || 
+          text.includes('<!DOCTYPE') || text.includes('<html')) {
+        const errorPreview = text.substring(0, 200);
+        console.error(`取得 ${symbol} 股價時發生錯誤: 收到錯誤訊息而非 JSON。內容: ${errorPreview}`);
+        return null;
+      }
+    } catch (textError: any) {
+      console.error(`取得 ${symbol} 股價時發生錯誤: 無法讀取響應文本`, textError?.message || textError);
+      return null;
+    }
+    
+    try {
       data = JSON.parse(text);
-    } catch (parseError) {
-      // 如果不是有效的 JSON，可能是錯誤訊息
-      console.error(`取得 ${symbol} 股價時發生錯誤: 響應不是有效的 JSON。內容: ${text.substring(0, 100)}`);
+    } catch (parseError: any) {
+      // 如果不是有效的 JSON，可能是錯誤訊息（如 "Edge: Too many requests"）
+      const errorPreview = text.substring(0, 200);
+      console.error(`取得 ${symbol} 股價時發生錯誤: 響應不是有效的 JSON。內容: ${errorPreview}`);
+      // 不拋出錯誤，直接返回 null
       return null;
     }
     
@@ -195,8 +218,13 @@ const fetchSingleStockPrice = async (symbol: string): Promise<PriceData | null> 
       change: finalChange,
       changePercent: finalChangePercent,
     };
-  } catch (error) {
-    console.error(`取得 ${symbol} 股價時發生錯誤:`, error);
+  } catch (error: any) {
+    // 避免重複顯示 JSON 解析錯誤（已經在內部處理了）
+    if (error instanceof SyntaxError && error.message?.includes('JSON')) {
+      // JSON 解析錯誤已經在內部處理，這裡不需要再次記錄
+      return null;
+    }
+    console.error(`取得 ${symbol} 股價時發生錯誤:`, error?.message || error);
     return null;
   }
 };
@@ -217,14 +245,36 @@ const fetchExchangeRate = async (): Promise<number> => {
     }
 
     // 先讀取響應文本，檢查是否為有效的 JSON
-    const text = await response.text();
+    let text: string;
     let data: any;
     
     try {
+      text = await response.text();
+      
+      // 檢查響應是否為錯誤訊息
+      if (!text || text.trim().length === 0) {
+        console.error('取得匯率時發生錯誤: 響應為空');
+        return 31.5; // 預設匯率
+      }
+      
+      // 檢查是否為 HTML 錯誤頁面或純文本錯誤訊息
+      if (text.trim().startsWith('Edge:') || text.trim().startsWith('Too many') || 
+          text.includes('<!DOCTYPE') || text.includes('<html')) {
+        const errorPreview = text.substring(0, 200);
+        console.error(`取得匯率時發生錯誤: 收到錯誤訊息而非 JSON。內容: ${errorPreview}`);
+        return 31.5; // 預設匯率
+      }
+    } catch (textError: any) {
+      console.error('取得匯率時發生錯誤: 無法讀取響應文本', textError?.message || textError);
+      return 31.5; // 預設匯率
+    }
+    
+    try {
       data = JSON.parse(text);
-    } catch (parseError) {
-      // 如果不是有效的 JSON，可能是錯誤訊息
-      console.error(`取得匯率時發生錯誤: 響應不是有效的 JSON。內容: ${text.substring(0, 100)}`);
+    } catch (parseError: any) {
+      // 如果不是有效的 JSON，可能是錯誤訊息（如 "Edge: Too many requests"）
+      const errorPreview = text.substring(0, 200);
+      console.error(`取得匯率時發生錯誤: 響應不是有效的 JSON。內容: ${errorPreview}`);
       return 31.5; // 預設匯率
     }
     
@@ -237,9 +287,195 @@ const fetchExchangeRate = async (): Promise<number> => {
     const rate = meta.regularMarketPrice || meta.previousClose || 31.5;
     
     return rate;
-  } catch (error) {
-    console.error('取得匯率時發生錯誤:', error);
+  } catch (error: any) {
+    // 避免重複顯示 JSON 解析錯誤（已經在內部處理了）
+    if (error instanceof SyntaxError && error.message?.includes('JSON')) {
+      // JSON 解析錯誤已經在內部處理，這裡不需要再次記錄
+      return 31.5;
+    }
+    console.error('取得匯率時發生錯誤:', error?.message || error);
     return 31.5; // 預設匯率
+  }
+};
+
+/**
+ * 取得日幣對台幣的即時匯率
+ * @returns JPY/TWD 匯率（1 日幣 = X 台幣）
+ */
+const fetchJPYExchangeRate = async (): Promise<number> => {
+  try {
+    // 使用 JPYTWD=X 作為查詢符號
+    const baseUrl = `https://query1.finance.yahoo.com/v8/finance/chart/JPYTWD=X?interval=1d&range=1d`;
+    
+    const response = await fetchWithProxy(baseUrl);
+
+    if (!response || !response.ok) {
+      console.error('無法取得日幣匯率資訊');
+      return 0.21; // 預設匯率（約 1 JPY = 0.21 TWD）
+    }
+
+    // 先讀取響應文本，檢查是否為有效的 JSON
+    let text: string;
+    let data: any;
+    
+    try {
+      text = await response.text();
+      
+      // 檢查響應是否為錯誤訊息
+      if (!text || text.trim().length === 0) {
+        console.error('取得日幣匯率時發生錯誤: 響應為空');
+        return 0.21; // 預設匯率
+      }
+      
+      // 檢查是否為 HTML 錯誤頁面或純文本錯誤訊息
+      if (text.trim().startsWith('Edge:') || text.trim().startsWith('Too many') || 
+          text.includes('<!DOCTYPE') || text.includes('<html')) {
+        const errorPreview = text.substring(0, 200);
+        console.error(`取得日幣匯率時發生錯誤: 收到錯誤訊息而非 JSON。內容: ${errorPreview}`);
+        return 0.21; // 預設匯率
+      }
+    } catch (textError: any) {
+      console.error('取得日幣匯率時發生錯誤: 無法讀取響應文本', textError?.message || textError);
+      return 0.21; // 預設匯率
+    }
+    
+    try {
+      data = JSON.parse(text);
+    } catch (parseError: any) {
+      // 如果不是有效的 JSON，可能是錯誤訊息（如 "Edge: Too many requests"）
+      const errorPreview = text.substring(0, 200);
+      console.error(`取得日幣匯率時發生錯誤: 響應不是有效的 JSON。內容: ${errorPreview}`);
+      return 0.21; // 預設匯率
+    }
+    
+    if (!data.chart || !data.chart.result || data.chart.result.length === 0) {
+      return 0.21; // 預設匯率
+    }
+
+    const result = data.chart.result[0];
+    const meta = result.meta;
+    const rate = meta.regularMarketPrice || meta.previousClose || 0.21;
+    
+    return rate;
+  } catch (error: any) {
+    // 避免重複顯示 JSON 解析錯誤（已經在內部處理了）
+    if (error instanceof SyntaxError && error.message?.includes('JSON')) {
+      // JSON 解析錯誤已經在內部處理，這裡不需要再次記錄
+      return 0.21;
+    }
+    console.error('取得日幣匯率時發生錯誤:', error?.message || error);
+    return 0.21; // 預設匯率
+  }
+};
+
+/**
+ * 取得指定年份的歷史日幣匯率（年底匯率）
+ * @param year 年份
+ * @returns JPY/TWD 歷史匯率（1 日幣 = X 台幣）
+ */
+const fetchHistoricalJPYExchangeRate = async (year: number): Promise<number> => {
+  try {
+    // 使用 UTC 時間來避免時區問題
+    // 查詢範圍：從 11 月 1 日到 12 月 31 日，確保能獲取到年底的數據
+    // Yahoo Finance API 使用 UTC 時間戳（秒）
+    const endDateUTC = Date.UTC(year, 11, 31, 23, 59, 59); // 12 月 31 日 23:59:59 UTC
+    const startDateUTC = Date.UTC(year, 10, 1, 0, 0, 0); // 11 月 1 日 00:00:00 UTC
+    
+    const endDate = Math.floor(endDateUTC / 1000);
+    const startDate = Math.floor(startDateUTC / 1000);
+    
+    // 使用 JPYTWD=X 作為查詢符號
+    const baseUrl = `https://query1.finance.yahoo.com/v8/finance/chart/JPYTWD=X?period1=${startDate}&period2=${endDate}&interval=1d`;
+    
+    console.log(`查詢歷史日幣匯率 URL: ${baseUrl.substring(0, 100)}...`);
+    
+    const response = await fetchWithProxy(baseUrl);
+
+    if (!response || !response.ok) {
+      console.warn(`無法取得 ${year} 年歷史日幣匯率，使用當前匯率作為備用`);
+      return await fetchJPYExchangeRate();
+    }
+
+    // 先讀取響應文本，檢查是否為有效的 JSON
+    const text = await response.text();
+    let data: any;
+    
+    try {
+      data = JSON.parse(text);
+    } catch (parseError) {
+      // 如果不是有效的 JSON，可能是錯誤訊息
+      console.warn(`取得 ${year} 年歷史日幣匯率時發生錯誤: 響應不是有效的 JSON。內容: ${text.substring(0, 100)}，使用當前匯率作為備用`);
+      return await fetchJPYExchangeRate();
+    }
+    
+    if (!data.chart || !data.chart.result || data.chart.result.length === 0) {
+      console.warn(`Yahoo Finance 返回空日幣匯率數據，使用當前匯率作為備用`);
+      return await fetchJPYExchangeRate();
+    }
+
+    const result = data.chart.result[0];
+    
+    // 檢查是否有錯誤訊息
+    if (result.error) {
+      console.warn(`Yahoo Finance API 日幣匯率錯誤:`, result.error);
+      return await fetchJPYExchangeRate();
+    }
+
+    const timestamps = result.timestamp || [];
+    const closes = result.indicators?.quote?.[0]?.close || [];
+    
+    console.log(`取得歷史日幣匯率數據：${timestamps.length} 個時間點，${closes.filter((c: any) => c != null).length} 個有效匯率`);
+
+    // 找到最接近年底（12 月 31 日）的匯率
+    if (timestamps.length === 0 || closes.length === 0) {
+      console.warn(`無有效的歷史日幣匯率數據，使用當前匯率作為備用`);
+      return await fetchJPYExchangeRate();
+    }
+
+    // 目標時間戳：12 月 31 日 23:59:59 UTC
+    const targetTimestamp = Math.floor(endDateUTC / 1000);
+    
+    // 找到最接近年底的有效匯率
+    let closestRate = null;
+    let closestDiff = Infinity;
+    
+    for (let i = 0; i < timestamps.length; i++) {
+      if (closes[i] != null && closes[i] > 0) {
+        const diff = Math.abs(timestamps[i] - targetTimestamp);
+        // 只考慮在年底之前的數據（不能使用未來的數據）
+        if (timestamps[i] <= targetTimestamp && diff < closestDiff) {
+          closestDiff = diff;
+          closestRate = closes[i];
+        }
+      }
+    }
+
+    // 如果找不到年底之前的數據，則使用最後一個有效匯率（向後兼容）
+    if (closestRate == null) {
+      for (let i = closes.length - 1; i >= 0; i--) {
+        if (closes[i] != null && closes[i] > 0) {
+          closestRate = closes[i];
+          break;
+        }
+      }
+    }
+
+    if (closestRate == null || closestRate <= 0) {
+      console.warn(`無法找到有效的歷史日幣匯率，使用當前匯率作為備用`);
+      return await fetchJPYExchangeRate();
+    }
+
+    console.log(`取得 ${year} 年歷史日幣匯率: ${closestRate.toFixed(4)} (1 JPY = ${closestRate.toFixed(4)} TWD)`);
+    return closestRate;
+  } catch (error) {
+    console.error(`取得 ${year} 年歷史日幣匯率時發生錯誤:`, error);
+    // 發生錯誤時，嘗試使用當前匯率作為備用
+    try {
+      return await fetchJPYExchangeRate();
+    } catch (fallbackError) {
+      console.error('取得備用日幣匯率也失敗:', fallbackError);
+      return 0.21; // 最終預設匯率
+    }
   }
 };
 
@@ -363,7 +599,7 @@ const fetchHistoricalExchangeRate = async (year: number): Promise<number> => {
 export const fetchCurrentPrices = async (
   tickers: string[],
   markets?: ('US' | 'TW' | 'UK' | 'JP')[]
-): Promise<{ prices: Record<string, PriceData>, exchangeRate: number }> => {
+): Promise<{ prices: Record<string, PriceData>, exchangeRate: number, jpyExchangeRate?: number }> => {
   try {
     // 轉換所有代號為 Yahoo Finance 格式
     const yahooSymbols = tickers.map((ticker, index) => {
@@ -398,12 +634,17 @@ export const fetchCurrentPrices = async (
       }
     });
 
+    // 檢查是否有日本市場的股票
+    const hasJP = markets?.some(m => m === 'JP') || false;
+    
     // 同時取得匯率
     const exchangeRate = await fetchExchangeRate();
+    const jpyExchangeRate = hasJP ? await fetchJPYExchangeRate() : undefined;
 
     return {
       prices: result,
       exchangeRate: exchangeRate,
+      jpyExchangeRate: jpyExchangeRate,
     };
   } catch (error) {
     console.error('批次取得股價時發生錯誤:', error);
@@ -422,7 +663,7 @@ export const fetchHistoricalYearEndData = async (
   year: number,
   tickers: string[],
   markets?: ('US' | 'TW' | 'UK' | 'JP')[]
-): Promise<{ prices: Record<string, number>, exchangeRate: number }> => {
+): Promise<{ prices: Record<string, number>, exchangeRate: number, jpyExchangeRate?: number }> => {
   try {
     const endDate = Math.floor(new Date(`${year}-12-31`).getTime() / 1000);
     const startDate = Math.floor(new Date(`${year}-12-01`).getTime() / 1000);
@@ -516,12 +757,17 @@ export const fetchHistoricalYearEndData = async (
     
     console.log(`歷史股價查詢結果:`, result);
 
+    // 檢查是否有日本市場的股票
+    const hasJP = markets?.some(m => m === 'JP') || false;
+
     // 取得歷史匯率（查詢指定年份的歷史匯率）
     const exchangeRate = await fetchHistoricalExchangeRate(year);
+    const jpyExchangeRate = hasJP ? await fetchHistoricalJPYExchangeRate(year) : undefined;
 
     return {
       prices: result,
       exchangeRate: exchangeRate,
+      jpyExchangeRate: jpyExchangeRate,
     };
   } catch (error) {
     console.error(`取得 ${year} 年歷史資料時發生錯誤:`, error);
@@ -549,6 +795,7 @@ const fetchAnnualizedReturnFromStockAnalysis = async (
     // StockAnalysis.com 的 URL 格式（根據市場類型）：
     // - 台股：https://stockanalysis.com/quote/tpe/0050/
     // - 英國：https://stockanalysis.com/quote/swx/VWRA/（或其他交易所格式）
+    // - 日本：https://stockanalysis.com/quote/tyo/9984/
     // - 美國：先嘗試 /etf/VT/，失敗後嘗試 /stocks/VT/
     let urls: string[] = [];
     
@@ -559,6 +806,9 @@ const fetchAnnualizedReturnFromStockAnalysis = async (
       // 英國市場：使用 /quote/swx/VWRA/ 格式（或其他英國交易所格式）
       // 注意：SWX 實際上是瑞士交易所，但根據用戶要求使用此格式
       urls = [`https://stockanalysis.com/quote/swx/${cleanTicker}/`];
+    } else if (market === 'JP') {
+      // 日本市場：使用 /quote/tyo/9984/ 格式（TYO = Tokyo Stock Exchange）
+      urls = [`https://stockanalysis.com/quote/tyo/${cleanTicker}/`];
     } else if (market === 'US' || market === undefined) {
       // 美國市場：先嘗試 ETF，如果失敗再嘗試 stocks
       urls = [
@@ -566,7 +816,7 @@ const fetchAnnualizedReturnFromStockAnalysis = async (
         `https://stockanalysis.com/stocks/${cleanTicker}/`
       ];
     } else {
-      // 其他市場（如日本）：先嘗試 ETF，如果失敗再嘗試 stocks
+      // 其他市場：先嘗試 ETF，如果失敗再嘗試 stocks
       urls = [
         `https://stockanalysis.com/etf/${cleanTicker}/`,
         `https://stockanalysis.com/stocks/${cleanTicker}/`
