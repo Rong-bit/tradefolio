@@ -14,7 +14,7 @@ const AssetAllocationSimulator: React.FC<Props> = ({ holdings = [] }) => {
   const [initialAmount, setInitialAmount] = useState<number>(1000000); // 預設 100 萬
   const [years, setYears] = useState<number>(10); // 預設 10 年
   const [regularInvestment, setRegularInvestment] = useState<number>(0); // 定期定額金額
-  const [regularFrequency, setRegularFrequency] = useState<'monthly' | 'yearly'>('monthly'); // 定期定額頻率
+  const [regularFrequency, setRegularFrequency] = useState<'monthly' | 'quarterly' | 'yearly'>('monthly'); // 定期定額頻率
   const [newTicker, setNewTicker] = useState<string>('');
   const [newMarket, setNewMarket] = useState<Market>(Market.TW);
   const [newAnnualReturn, setNewAnnualReturn] = useState<number>(8);
@@ -58,6 +58,8 @@ const AssetAllocationSimulator: React.FC<Props> = ({ holdings = [] }) => {
     // 計算年度定期定額投入
     const annualRegularInvestment = regularFrequency === 'monthly' 
       ? regularInvestment * 12 
+      : regularFrequency === 'quarterly'
+      ? regularInvestment * 4
       : regularInvestment;
 
     for (let year = 1; year <= years; year++) {
@@ -75,6 +77,18 @@ const AssetAllocationSimulator: React.FC<Props> = ({ holdings = [] }) => {
             
             // 然後計算該月的報酬
             currentValue = currentValue * (1 + monthlyReturn);
+          }
+        } else if (regularFrequency === 'quarterly') {
+          // 每季投入（每3個月投入一次），計算複利效果
+          const quarterlyReturn = Math.pow(1 + weightedReturn / 100, 1 / 4) - 1; // 季化報酬率
+          for (let quarter = 1; quarter <= 4; quarter++) {
+            // 先投入定期定額
+            currentValue += regularInvestment;
+            cumulativeInvestment += regularInvestment;
+            yearRegularInvestment += regularInvestment;
+            
+            // 然後計算該季的報酬（3個月）
+            currentValue = currentValue * Math.pow(1 + monthlyReturn, 3);
           }
         } else {
           // 每年投入一次（在年初投入）
@@ -318,11 +332,41 @@ const AssetAllocationSimulator: React.FC<Props> = ({ holdings = [] }) => {
             </label>
             <input
               type="number"
-              value={initialAmount}
-              onChange={(e) => setInitialAmount(parseFloat(e.target.value) || 0)}
+              value={initialAmount === 0 ? '' : initialAmount}
+              onChange={(e) => {
+                const inputValue = e.target.value;
+                // 如果輸入為空，設為 0
+                if (inputValue === '' || inputValue === null || inputValue === undefined) {
+                  setInitialAmount(0);
+                  return;
+                }
+                // 移除前導零並轉換為數字
+                const numValue = parseFloat(inputValue);
+                // 如果轉換失敗或為 NaN，設為 0
+                if (isNaN(numValue)) {
+                  setInitialAmount(0);
+                  return;
+                }
+                // 確保值不小於 0
+                if (numValue < 0) {
+                  setInitialAmount(0);
+                } else {
+                  setInitialAmount(numValue);
+                }
+              }}
+              onBlur={(e) => {
+                // 當失去焦點時，確保值正確格式化
+                const numValue = parseFloat(e.target.value);
+                if (isNaN(numValue) || numValue === 0) {
+                  setInitialAmount(0);
+                } else {
+                  setInitialAmount(numValue);
+                }
+              }}
               className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               min="0"
               step="1000"
+              placeholder="0"
             />
           </div>
           <div>
@@ -331,11 +375,45 @@ const AssetAllocationSimulator: React.FC<Props> = ({ holdings = [] }) => {
             </label>
             <input
               type="number"
-              value={years}
-              onChange={(e) => setYears(parseInt(e.target.value) || 1)}
+              value={years === 0 ? '' : years}
+              onChange={(e) => {
+                const inputValue = e.target.value;
+                // 如果輸入為空，設為 1（最小年數）
+                if (inputValue === '' || inputValue === null || inputValue === undefined) {
+                  setYears(1);
+                  return;
+                }
+                // 移除前導零並轉換為整數
+                const numValue = parseInt(inputValue, 10);
+                // 如果轉換失敗或為 NaN，設為 1
+                if (isNaN(numValue)) {
+                  setYears(1);
+                  return;
+                }
+                // 確保值在有效範圍內
+                if (numValue < 1) {
+                  setYears(1);
+                } else if (numValue > 50) {
+                  setYears(50);
+                } else {
+                  setYears(numValue);
+                }
+              }}
+              onBlur={(e) => {
+                // 當失去焦點時，確保值正確格式化
+                const numValue = parseInt(e.target.value, 10);
+                if (isNaN(numValue) || numValue < 1) {
+                  setYears(1);
+                } else if (numValue > 50) {
+                  setYears(50);
+                } else {
+                  setYears(numValue);
+                }
+              }}
               className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               min="1"
               max="50"
+              placeholder="10"
             />
           </div>
         </div>
@@ -350,8 +428,37 @@ const AssetAllocationSimulator: React.FC<Props> = ({ holdings = [] }) => {
               </label>
               <input
                 type="number"
-                value={regularInvestment}
-                onChange={(e) => setRegularInvestment(parseFloat(e.target.value) || 0)}
+                value={regularInvestment === 0 ? '' : regularInvestment}
+                onChange={(e) => {
+                  const inputValue = e.target.value;
+                  // 如果輸入為空，設為 0
+                  if (inputValue === '' || inputValue === null || inputValue === undefined) {
+                    setRegularInvestment(0);
+                    return;
+                  }
+                  // 移除前導零並轉換為數字
+                  const numValue = parseFloat(inputValue);
+                  // 如果轉換失敗或為 NaN，設為 0
+                  if (isNaN(numValue)) {
+                    setRegularInvestment(0);
+                    return;
+                  }
+                  // 確保值不小於 0
+                  if (numValue < 0) {
+                    setRegularInvestment(0);
+                  } else {
+                    setRegularInvestment(numValue);
+                  }
+                }}
+                onBlur={(e) => {
+                  // 當失去焦點時，確保值正確格式化
+                  const numValue = parseFloat(e.target.value);
+                  if (isNaN(numValue) || numValue === 0) {
+                    setRegularInvestment(0);
+                  } else {
+                    setRegularInvestment(numValue);
+                  }
+                }}
                 className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 min="0"
                 step="1000"
@@ -365,11 +472,12 @@ const AssetAllocationSimulator: React.FC<Props> = ({ holdings = [] }) => {
               </label>
               <select
                 value={regularFrequency}
-                onChange={(e) => setRegularFrequency(e.target.value as 'monthly' | 'yearly')}
+                onChange={(e) => setRegularFrequency(e.target.value as 'monthly' | 'quarterly' | 'yearly')}
                 className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 disabled={regularInvestment === 0}
               >
                 <option value="monthly">每月投入</option>
+                <option value="quarterly">每季投入</option>
                 <option value="yearly">每年投入</option>
               </select>
             </div>
@@ -379,7 +487,11 @@ const AssetAllocationSimulator: React.FC<Props> = ({ holdings = [] }) => {
                 <p className="text-lg font-bold text-slate-800">
                   {regularInvestment > 0 
                     ? formatCurrency(
-                        regularFrequency === 'monthly' ? regularInvestment * 12 : regularInvestment,
+                        regularFrequency === 'monthly' 
+                          ? regularInvestment * 12 
+                          : regularFrequency === 'quarterly'
+                          ? regularInvestment * 4
+                          : regularInvestment,
                         'TWD'
                       )
                     : formatCurrency(0, 'TWD')
