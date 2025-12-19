@@ -12,11 +12,12 @@ import HelpView from './components/HelpView';
 import BatchImportModal from './components/BatchImportModal';
 import HistoricalDataModal from './components/HistoricalDataModal';
 import BatchUpdateMarketModal from './components/BatchUpdateMarketModal';
+import AssetAllocationSimulator from './components/AssetAllocationSimulator';
 import { fetchCurrentPrices } from './services/yahooFinanceService';
 import { ADMIN_EMAIL, SYSTEM_ACCESS_CODE, GLOBAL_AUTHORIZED_USERS } from './config';
 import { v4 as uuidv4 } from 'uuid';
 
-type View = 'dashboard' | 'history' | 'funds' | 'accounts' | 'rebalance' | 'help';
+type View = 'dashboard' | 'history' | 'funds' | 'accounts' | 'rebalance' | 'simulator' | 'help';
 
 // 全局覆蓋 confirm 函數
 let globalDebugLogs: string[] = [];
@@ -814,8 +815,8 @@ const App: React.FC = () => {
 
   // --- View Logic (Guest vs Member) ---
   const availableViews: View[] = isGuest 
-    ? ['dashboard', 'history', 'funds', 'accounts', 'help']
-    : ['dashboard', 'history', 'funds', 'accounts', 'rebalance', 'help'];
+    ? ['dashboard', 'history', 'funds', 'accounts', 'simulator', 'help']
+    : ['dashboard', 'history', 'funds', 'accounts', 'rebalance', 'simulator', 'help'];
 
   if (!isAuthenticated) {
     return (
@@ -929,6 +930,7 @@ const App: React.FC = () => {
                    {tab === 'funds' && '資金管理'}
                    {tab === 'accounts' && '證券戶'}
                    {tab === 'rebalance' && '再平衡'}
+                   {tab === 'simulator' && '配置模擬'}
                    {tab === 'help' && '系統管理'}
                  </button>
                ))}
@@ -1000,6 +1002,7 @@ const App: React.FC = () => {
                    {tab === 'funds' && '資金'}
                    {tab === 'accounts' && '證券戶'}
                    {tab === 'rebalance' && '再平衡'}
+                   {tab === 'simulator' && '模擬'}
                    {tab === 'help' && '系統'}
                  </button>
               ))}
@@ -1019,6 +1022,7 @@ const App: React.FC = () => {
                   {view === 'funds' && '資金存取與管理 (Funds)'}
                   {view === 'accounts' && '證券帳戶管理 (Accounts)'}
                   {view === 'rebalance' && '投資組合再平衡 (Rebalance)'}
+                  {view === 'simulator' && '資產配置模擬 (Allocation Simulator)'}
                   {view === 'help' && '系統管理與備份 (System)'}
                 </span>
                 {/* Mobile specific Guest Button */}
@@ -1366,6 +1370,16 @@ const App: React.FC = () => {
                  exchangeRate={exchangeRate}
                  targets={rebalanceTargets}
                  onUpdateTargets={updateRebalanceTargets}
+               />
+            )}
+
+            {view === 'simulator' && (
+               <AssetAllocationSimulator 
+                 holdings={holdings.map(h => ({
+                   ticker: h.ticker,
+                   market: h.market,
+                   annualizedReturn: h.annualizedReturn
+                 }))}
                />
             )}
 
