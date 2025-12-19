@@ -488,26 +488,41 @@ const fetchAnnualizedReturnFromMoneyDJ = async (ticker: string): Promise<number 
 
     const html = await response.text();
     
-    // 使用正則表達式尋找該 ETF 的年化報酬率
-    // MoneyDJ 頁面中，ETF 數據通常在表格中，格式類似：<td>0050</td>...<td>年化報酬率%</td>
-    // 嘗試多種可能的模式
-    const patterns = [
-      // 模式1: 尋找包含 ticker 的行，然後找年化報酬率
-      new RegExp(`<tr[^>]*>.*?${cleanTicker}.*?<td[^>]*>([\\d.]+)%</td>`, 'is'),
-      // 模式2: 尋找 ticker 後面的數字（可能是年化報酬率）
-      new RegExp(`${cleanTicker}[^<]*<td[^>]*>([\\d.]+)</td>`, 'is'),
-      // 模式3: 更寬鬆的匹配
-      new RegExp(`(${cleanTicker})[^>]*>[^<]*<[^>]*>([\\d.]+)%`, 'is'),
-    ];
-
-    for (const pattern of patterns) {
-      const match = html.match(pattern);
-      if (match && match[1]) {
-        const returnValue = parseFloat(match[1]);
-        if (!isNaN(returnValue) && returnValue > 0 && returnValue < 1000) {
+    // MoneyDJ 頁面結構分析（根據實際 HTML）：
+    // - 表格行：<tr class="even"> 或 <tr class="odd">
+    // - 代碼在 <td class="col01"><a>0050</a></td>
+    // - 年化報酬率在 <td class="col05 sort"><span class="positive">12.34</span></td> 或 <span class="negative">-1.23</span>
+    
+    // 方法1: 尋找包含 ticker 的表格行，然後在同一行中找到 col05 的年化報酬率
+    // 使用更精確的正則表達式：找到包含 ticker 的 <tr> 到 </tr> 之間的內容
+    const rowPattern = new RegExp(`<tr[^>]*>([\\s\\S]*?<td[^>]*class="col01"[^>]*>.*?${cleanTicker}.*?</td>[\\s\\S]*?)</tr>`, 'i');
+    const rowMatch = html.match(rowPattern);
+    
+    if (rowMatch && rowMatch[1]) {
+      const rowContent = rowMatch[1];
+      
+      // 在該行中尋找 col05 的年化報酬率
+      // 格式：<td class="col05 sort"><span class="positive">12.34</span></td> 或 <span class="negative">-1.23</span>
+      const returnPattern = /<td[^>]*class="col05[^"]*"[^>]*>\s*<span[^>]*>([\d.-]+)<\/span>\s*<\/td>/i;
+      const returnMatch = rowContent.match(returnPattern);
+      
+      if (returnMatch && returnMatch[1]) {
+        const returnValue = parseFloat(returnMatch[1]);
+        if (!isNaN(returnValue)) {
           console.log(`從 MoneyDJ 取得 ${cleanTicker} 年化報酬率: ${returnValue}%`);
           return returnValue;
         }
+      }
+    }
+    
+    // 方法2: 更寬鬆的匹配，直接搜尋 ticker 後面的 col05
+    const loosePattern = new RegExp(`${cleanTicker}[\\s\\S]*?<td[^>]*class="col05[^"]*"[^>]*>\\s*<span[^>]*>([\\d.-]+)</span>`, 'i');
+    const looseMatch = html.match(loosePattern);
+    if (looseMatch && looseMatch[1]) {
+      const returnValue = parseFloat(looseMatch[1]);
+      if (!isNaN(returnValue)) {
+        console.log(`從 MoneyDJ 取得 ${cleanTicker} 年化報酬率（方法2）: ${returnValue}%`);
+        return returnValue;
       }
     }
 
