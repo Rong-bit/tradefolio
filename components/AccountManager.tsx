@@ -70,6 +70,7 @@ const AccountManager: React.FC<Props> = ({ accounts, onAdd, onDelete }) => {
             >
               <option value={Currency.TWD}>台幣 (TWD)</option>
               <option value={Currency.USD}>美金 (USD)</option>
+              <option value={Currency.JPY}>日幣 (JPY)</option>
             </select>
           </div>
           <div className="flex items-center h-10 pb-2">
@@ -97,7 +98,11 @@ const AccountManager: React.FC<Props> = ({ accounts, onAdd, onDelete }) => {
               <div className="flex-1 min-w-0 pr-2">
                 <h4 className="font-bold text-slate-800 text-lg break-words leading-tight">{acc.name}</h4>
                 <div className="flex gap-2 mt-1.5 flex-wrap">
-                  <span className={`text-xs px-2 py-0.5 rounded border ${acc.currency === Currency.USD ? 'bg-blue-50 text-blue-700 border-blue-100' : 'bg-green-50 text-green-700 border-green-100'}`}>
+                  <span className={`text-xs px-2 py-0.5 rounded border ${
+                    acc.currency === Currency.USD ? 'bg-blue-50 text-blue-700 border-blue-100' : 
+                    acc.currency === Currency.JPY ? 'bg-orange-50 text-orange-700 border-orange-100' : 
+                    'bg-green-50 text-green-700 border-green-100'
+                  }`}>
                     {acc.currency}
                   </span>
                   {acc.isSubBrokerage && <span className="text-xs bg-purple-50 text-purple-700 border border-purple-100 px-2 py-0.5 rounded">複委託</span>}
