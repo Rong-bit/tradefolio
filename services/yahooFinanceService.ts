@@ -72,7 +72,7 @@ const fetchWithProxy = async (url: string): Promise<Response | null> => {
     url
   ];
 
-  const isDevelopment = (import.meta as any).env?.DEV ?? process.env.NODE_ENV === 'development';
+  const isDevelopment = (import.meta as any).env?.DEV ?? false;
   let lastError: Error | null = null;
 
   for (let i = 0; i < proxies.length; i++) {
@@ -147,7 +147,17 @@ const fetchSingleStockPrice = async (symbol: string): Promise<PriceData | null> 
       return null;
     }
 
-    const data = await response.json();
+    // 先讀取響應文本，檢查是否為有效的 JSON
+    const text = await response.text();
+    let data: any;
+    
+    try {
+      data = JSON.parse(text);
+    } catch (parseError) {
+      // 如果不是有效的 JSON，可能是錯誤訊息
+      console.error(`取得 ${symbol} 股價時發生錯誤: 響應不是有效的 JSON。內容: ${text.substring(0, 100)}`);
+      return null;
+    }
     
     if (!data.chart || !data.chart.result || data.chart.result.length === 0) {
       console.error(`無法取得 ${symbol} 的資料`);
@@ -206,7 +216,17 @@ const fetchExchangeRate = async (): Promise<number> => {
       return 31.5; // 預設匯率
     }
 
-    const data = await response.json();
+    // 先讀取響應文本，檢查是否為有效的 JSON
+    const text = await response.text();
+    let data: any;
+    
+    try {
+      data = JSON.parse(text);
+    } catch (parseError) {
+      // 如果不是有效的 JSON，可能是錯誤訊息
+      console.error(`取得匯率時發生錯誤: 響應不是有效的 JSON。內容: ${text.substring(0, 100)}`);
+      return 31.5; // 預設匯率
+    }
     
     if (!data.chart || !data.chart.result || data.chart.result.length === 0) {
       return 31.5; // 預設匯率
@@ -251,7 +271,17 @@ const fetchHistoricalExchangeRate = async (year: number): Promise<number> => {
       return await fetchExchangeRate();
     }
 
-    const data = await response.json();
+    // 先讀取響應文本，檢查是否為有效的 JSON
+    const text = await response.text();
+    let data: any;
+    
+    try {
+      data = JSON.parse(text);
+    } catch (parseError) {
+      // 如果不是有效的 JSON，可能是錯誤訊息
+      console.warn(`取得 ${year} 年歷史匯率時發生錯誤: 響應不是有效的 JSON。內容: ${text.substring(0, 100)}，使用當前匯率作為備用`);
+      return await fetchExchangeRate();
+    }
     
     if (!data.chart || !data.chart.result || data.chart.result.length === 0) {
       console.warn(`Yahoo Finance 返回空匯率數據，使用當前匯率作為備用`);
@@ -341,9 +371,23 @@ export const fetchCurrentPrices = async (
       return convertToYahooSymbol(ticker, market);
     });
 
-    // 並行取得所有股票的價格
-    const pricePromises = yahooSymbols.map(symbol => fetchSingleStockPrice(symbol));
-    const prices = await Promise.all(pricePromises);
+    // 批次處理請求，避免速率限制
+    // 每次處理 3 個請求，每個請求之間延遲 200ms
+    const batchSize = 3;
+    const delayMs = 200;
+    const prices: (PriceData | null)[] = [];
+    
+    for (let i = 0; i < yahooSymbols.length; i += batchSize) {
+      const batch = yahooSymbols.slice(i, i + batchSize);
+      const batchPromises = batch.map(symbol => fetchSingleStockPrice(symbol));
+      const batchResults = await Promise.all(batchPromises);
+      prices.push(...batchResults);
+      
+      // 如果不是最後一批，添加延遲
+      if (i + batchSize < yahooSymbols.length) {
+        await new Promise(resolve => setTimeout(resolve, delayMs));
+      }
+    }
 
     // 建立結果物件，使用原始 ticker 作為 key
     const result: Record<string, PriceData> = {};
@@ -401,7 +445,17 @@ export const fetchHistoricalYearEndData = async (
           return null;
         }
 
-        const data = await response.json();
+        // 先讀取響應文本，檢查是否為有效的 JSON
+        const text = await response.text();
+        let data: any;
+        
+        try {
+          data = JSON.parse(text);
+        } catch (parseError) {
+          // 如果不是有效的 JSON，可能是錯誤訊息
+          console.warn(`取得 ${symbol} 歷史資料時發生錯誤: 響應不是有效的 JSON。內容: ${text.substring(0, 100)}`);
+          return null;
+        }
         if (!data.chart || !data.chart.result || data.chart.result.length === 0) {
           console.warn(`Yahoo Finance 返回空數據: ${symbol}`);
           return null;
@@ -619,7 +673,17 @@ export const fetchAnnualizedReturn = async (
       return null;
     }
 
-    const data = await response.json();
+    // 先讀取響應文本，檢查是否為有效的 JSON
+    const text = await response.text();
+    let data: any;
+    
+    try {
+      data = JSON.parse(text);
+    } catch (parseError) {
+      // 如果不是有效的 JSON，可能是錯誤訊息
+      console.warn(`取得 ${ticker} 年化報酬率時發生錯誤: 響應不是有效的 JSON。內容: ${text.substring(0, 100)}`);
+      return null;
+    }
     if (!data.chart || !data.chart.result || data.chart.result.length === 0) {
       console.warn(`Yahoo Finance 返回空數據: ${ticker}`);
       return null;
