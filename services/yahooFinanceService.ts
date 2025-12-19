@@ -518,9 +518,16 @@ export const fetchAnnualizedReturn = async (
     }
 
     const timestamps = result.timestamp || [];
+    // 優先使用調整後收盤價（adjclose），這會自動處理股票拆分和股息
+    // 如果沒有 adjclose，則使用普通收盤價（close）
+    const adjCloses = result.indicators?.adjclose?.[0]?.adjclose || [];
     const closes = result.indicators?.quote?.[0]?.close || [];
+    
+    // 決定使用哪個價格陣列
+    const useAdjusted = adjCloses.length > 0;
+    const prices = useAdjusted ? adjCloses : closes;
 
-    if (timestamps.length === 0 || closes.length === 0) {
+    if (timestamps.length === 0 || prices.length === 0) {
       console.warn(`無有效的歷史價格數據: ${ticker}`);
       return null;
     }
@@ -530,8 +537,8 @@ export const fetchAnnualizedReturn = async (
     let earliestTimestamp: number | null = null;
 
     for (let i = 0; i < timestamps.length; i++) {
-      if (closes[i] != null && closes[i] > 0) {
-        earliestPrice = closes[i];
+      if (prices[i] != null && prices[i] > 0) {
+        earliestPrice = prices[i];
         earliestTimestamp = timestamps[i];
         break; // 找到第一個有效價格就停止
       }
@@ -541,9 +548,49 @@ export const fetchAnnualizedReturn = async (
       console.warn(`無法找到 ${ticker} 的有效歷史價格`);
       return null;
     }
+    
+    // 4. 取得當前價格（必須使用調整後價格以保持一致性）
+    // 如果使用調整後價格，當前價格也應該使用最新的調整後價格
+    // 這樣可以確保計算的一致性，避免即時價格和歷史調整後價格的不匹配
+    let currentPriceForCalculation = currentPrice;
+    if (useAdjusted && prices.length > 0) {
+      // 找到最新的調整後價格（通常是陣列的最後一個有效值）
+      for (let i = prices.length - 1; i >= 0; i--) {
+        if (prices[i] != null && prices[i] > 0) {
+          currentPriceForCalculation = prices[i];
+          console.log(`使用最新的調整後價格: ${currentPriceForCalculation.toFixed(2)} (原始即時價格: ${currentPrice.toFixed(2)})`);
+          break;
+        }
+      }
+    } else {
+      // 如果沒有調整後價格，使用歷史數據中的最新收盤價
+      if (closes.length > 0) {
+        for (let i = closes.length - 1; i >= 0; i--) {
+          if (closes[i] != null && closes[i] > 0) {
+            currentPriceForCalculation = closes[i];
+            console.log(`使用歷史數據中的最新收盤價: ${currentPriceForCalculation.toFixed(2)} (原始即時價格: ${currentPrice.toFixed(2)})`);
+            break;
+          }
+        }
+      }
+    }
 
-    // 4. 計算年化報酬率 (CAGR)
+    // 4. 計算年化報酬率 (CAGR - Compound Annual Growth Rate)
+    // 
+    // 年化報酬率計算公式：
     // CAGR = ((當前價格 / 初始價格) ^ (1 / 年數)) - 1
+    //
+    // 說明：
+    // - 當前價格：股票目前的市場價格
+    // - 初始價格：股票上市時或最早可取得的歷史價格
+    // - 年數：從上市日期到當前日期的完整年數（使用 365.25 天/年，考慮閏年）
+    // - CAGR 表示如果投資在上市時買入並持有至今，每年的平均複合報酬率
+    //
+    // 範例：
+    // 如果股票從 100 元漲到 200 元，經過 5 年：
+    // CAGR = ((200 / 100) ^ (1 / 5)) - 1 = (2 ^ 0.2) - 1 ≈ 0.1487 = 14.87%
+    // 這表示平均每年約有 14.87% 的複合成長率
+    //
     const years = (currentDate / 1000 - earliestTimestamp) / (365.25 * 24 * 60 * 60);
     
     if (years <= 0) {
@@ -556,19 +603,21 @@ export const fetchAnnualizedReturn = async (
       console.warn(`警告: ${ticker} 上市時間少於1年 (${years.toFixed(2)} 年)，年化報酬率可能不夠準確`);
     }
 
-    const priceRatio = currentPrice / earliestPrice;
+    const priceRatio = currentPriceForCalculation / earliestPrice;
     if (priceRatio <= 0) {
       console.warn(`價格比率無效: ${priceRatio}`);
       return null;
     }
 
+    // 套用 CAGR 公式計算年化報酬率
     const cagr = Math.pow(priceRatio, 1 / years) - 1;
-    const cagrPercent = cagr * 100;
+    const cagrPercent = cagr * 100; // 轉換為百分比
 
     console.log(`${ticker} 年化報酬率計算結果:`);
+    console.log(`  使用調整後價格: ${useAdjusted ? '是' : '否'}`);
     console.log(`  上市日期: ${new Date(earliestTimestamp * 1000).toLocaleDateString('zh-TW')}`);
-    console.log(`  上市價格: ${earliestPrice.toFixed(2)}`);
-    console.log(`  當前價格: ${currentPrice.toFixed(2)}`);
+    console.log(`  上市價格: ${earliestPrice.toFixed(2)} ${useAdjusted ? '(調整後)' : ''}`);
+    console.log(`  當前價格: ${currentPriceForCalculation.toFixed(2)} ${useAdjusted ? '(調整後)' : ''}`);
     console.log(`  年數: ${years.toFixed(2)} 年`);
     console.log(`  年化報酬率: ${cagrPercent.toFixed(2)}%`);
 
