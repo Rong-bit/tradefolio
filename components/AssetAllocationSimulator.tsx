@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo } from 'react';
 import { AssetSimulationItem, SimulationResult, Market, YearlyProjection } from '../types';
 import { formatCurrency } from '../utils/calculations';
@@ -204,6 +203,14 @@ const AssetAllocationSimulator: React.FC<Props> = ({ holdings = [] }) => {
   };
 
   // 自動查詢年化報酬率
+  // 
+  // 年化報酬率計算說明：
+  // 系統會查詢股票上市以來的歷史數據，使用 CAGR (Compound Annual Growth Rate) 公式計算：
+  // CAGR = ((當前價格 / 初始價格) ^ (1 / 年數)) - 1
+  // 
+  // 這表示如果從上市時買入並持有至今，每年的平均複合報酬率。
+  // 例如：股票從 100 元漲到 200 元，經過 5 年，年化報酬率約為 14.87%
+  //
   const fetchReturnForTicker = async () => {
     if (!newTicker.trim()) {
       setErrorMessage('請先輸入股票代號');
@@ -215,6 +222,7 @@ const AssetAllocationSimulator: React.FC<Props> = ({ holdings = [] }) => {
     setLoadingTicker(newTicker.trim().toUpperCase());
 
     try {
+      // 查詢股票上市以來的年化報酬率（CAGR）
       const annualReturn = await fetchAnnualizedReturn(newTicker.trim().toUpperCase(), newMarket);
       
       if (annualReturn !== null) {
@@ -485,6 +493,21 @@ const AssetAllocationSimulator: React.FC<Props> = ({ holdings = [] }) => {
             {loadingReturn && loadingTicker === newTicker.trim().toUpperCase() && (
               <p className="text-xs text-blue-600 mt-1">正在查詢 {newTicker.trim().toUpperCase()} 的年化報酬率...</p>
             )}
+            <div className="mt-2 p-2 bg-blue-50 border border-blue-200 rounded-lg text-xs text-blue-800">
+              <p className="font-semibold mb-1">📊 年化報酬率計算說明：</p>
+              <p className="mb-1">
+                系統使用 <strong>CAGR (複合年成長率)</strong> 公式計算：
+              </p>
+              <p className="font-mono bg-white px-2 py-1 rounded mb-1 text-blue-900">
+                CAGR = ((當前價格 / 初始價格) ^ (1 / 年數)) - 1
+              </p>
+              <p className="mb-1">
+                這表示如果從<strong>上市時買入並持有至今</strong>，每年的平均複合報酬率。
+              </p>
+              <p className="text-blue-700">
+                <strong>範例：</strong>股票從 100 元漲到 200 元，經過 5 年，年化報酬率約為 <strong>14.87%</strong>
+              </p>
+            </div>
           </div>
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-2">配置比例 (%)</label>
@@ -803,5 +826,4 @@ const AssetAllocationSimulator: React.FC<Props> = ({ holdings = [] }) => {
 };
 
 export default AssetAllocationSimulator;
-
 
