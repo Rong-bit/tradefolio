@@ -1368,6 +1368,7 @@ const App: React.FC = () => {
                 onDelete={removeCashFlow}
                 onClearAll={handleClearAllCashFlows}
                 currentExchangeRate={exchangeRate}
+                currentJpyExchangeRate={jpyExchangeRate}
               />
             )}
 
