@@ -25,7 +25,8 @@ const convertToYahooSymbol = (ticker: string, market?: 'US' | 'TW' | 'UK' | 'JP'
   cleanTicker = cleanTicker.replace(/\.T$/i, '').trim();
   
   // 判斷市場類型
-  if (market === 'TW' || /^\d{4}$/.test(cleanTicker)) {
+  // 優先檢查明確的 market 參數（避免誤判，例如日本股票 9984 不應被誤判為台股）
+  if (market === 'TW') {
     // 台股格式：數字代號 + .TW
     return `${cleanTicker}.TW`;
   } else if (market === 'UK') {
@@ -34,8 +35,17 @@ const convertToYahooSymbol = (ticker: string, market?: 'US' | 'TW' | 'UK' | 'JP'
   } else if (market === 'JP') {
     // 日本股票格式：代號 + .T (Tokyo)
     return `${cleanTicker}.T`;
-  } else if (market === 'US' || /^[A-Z]{1,5}$/.test(cleanTicker)) {
+  } else if (market === 'US') {
     // 美股格式：保持原樣
+    return cleanTicker;
+  }
+  
+  // 如果 market 未指定，則根據 ticker 格式推斷
+  if (/^\d{4}$/.test(cleanTicker)) {
+    // 4 位數字代號，預設視為台股
+    return `${cleanTicker}.TW`;
+  } else if (/^[A-Z]{1,5}$/.test(cleanTicker)) {
+    // 1-5 個字母，預設視為美股
     return cleanTicker;
   }
   
@@ -100,11 +110,14 @@ const fetchWithProxy = async (url: string): Promise<Response | null> => {
         return response;
       } else {
         // 記錄非成功的響應（但不顯示錯誤，因為會嘗試下一個代理）
+        // 對於 5xx 錯誤（如 520），也應該嘗試下一個代理
         lastError = new Error(`HTTP ${response.status}: ${response.statusText}`);
         // 只在開發模式下顯示
         if (isDevelopment) {
           console.debug(`代理服務 ${i + 1}/${proxies.length} 返回錯誤 ${response.status}，嘗試下一個...`);
         }
+        // 繼續嘗試下一個代理
+        continue;
       }
     } catch (error: any) {
       // 記錄錯誤（但不顯示超時錯誤和 CORS 錯誤，因為會自動嘗試下一個代理）
