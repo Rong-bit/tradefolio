@@ -162,7 +162,7 @@ export interface SimulationResult {
   yearlyProjections: YearlyProjection[]; // 年度預測
   regularInvestment?: {
     amount: number; // 定期定額金額
-    frequency: 'monthly' | 'yearly'; // 投入頻率
+    frequency: 'monthly' | 'quarterly' | 'yearly'; // 投入頻率
     totalInvested: number; // 總投入金額（包含初始和定期定額）
   };
 }
