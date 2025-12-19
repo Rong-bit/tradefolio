@@ -142,4 +142,31 @@ export interface HistoricalData {
   };
 }
 
+// 資產配置模擬相關類型
+export interface AssetSimulationItem {
+  id: string;
+  ticker: string;
+  market: Market;
+  name?: string; // 可選的資產名稱
+  annualizedReturn: number; // 年化報酬率 (%)
+  allocation: number; // 配置比例 (%)
+}
+
+export interface SimulationResult {
+  initialAmount: number; // 初始投資金額
+  years: number; // 投資年數
+  finalValue: number; // 最終價值
+  totalReturn: number; // 總報酬
+  totalReturnPercent: number; // 總報酬率 (%)
+  annualizedReturn: number; // 組合年化報酬率 (%)
+  yearlyProjections: YearlyProjection[]; // 年度預測
+}
+
+export interface YearlyProjection {
+  year: number;
+  value: number; // 該年度末的價值
+  return: number; // 該年度的報酬
+  returnPercent: number; // 該年度的報酬率 (%)
+}
+
 
