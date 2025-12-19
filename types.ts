@@ -160,6 +160,11 @@ export interface SimulationResult {
   totalReturnPercent: number; // 總報酬率 (%)
   annualizedReturn: number; // 組合年化報酬率 (%)
   yearlyProjections: YearlyProjection[]; // 年度預測
+  regularInvestment?: {
+    amount: number; // 定期定額金額
+    frequency: 'monthly' | 'yearly'; // 投入頻率
+    totalInvested: number; // 總投入金額（包含初始和定期定額）
+  };
 }
 
 export interface YearlyProjection {
@@ -167,6 +172,8 @@ export interface YearlyProjection {
   value: number; // 該年度末的價值
   return: number; // 該年度的報酬
   returnPercent: number; // 該年度的報酬率 (%)
+  regularInvestment?: number; // 該年度的定期定額投入
+  cumulativeInvestment?: number; // 累積總投入（包含初始和定期定額）
 }
 
 
