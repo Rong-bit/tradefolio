@@ -490,8 +490,9 @@ export const fetchAnnualizedReturn = async (
     const currentPrice = currentPriceData.price;
     const currentDate = Date.now();
 
-    // 2. 查詢歷史股價（查詢過去20年的數據以找到最早可取得的股價）
-    const yearsToSearch = 20;
+    // 2. 查詢歷史股價（查詢過去30年的數據以找到最早可取得的股價）
+    // 增加查詢範圍以確保能取得完整的上市歷史數據
+    const yearsToSearch = 30;
     const endDate = Math.floor(currentDate / 1000);
     const startDate = Math.floor((currentDate - yearsToSearch * 365 * 24 * 60 * 60 * 1000) / 1000);
 
@@ -526,6 +527,17 @@ export const fetchAnnualizedReturn = async (
     // 決定使用哪個價格陣列
     const useAdjusted = adjCloses.length > 0;
     const prices = useAdjusted ? adjCloses : closes;
+    
+    // 記錄數據可用性（用於調試）
+    console.log(`${ticker} 數據檢查:`);
+    console.log(`  時間戳數量: ${timestamps.length}`);
+    console.log(`  調整後價格數量: ${adjCloses.length}`);
+    console.log(`  普通收盤價數量: ${closes.length}`);
+    console.log(`  使用調整後價格: ${useAdjusted}`);
+    
+    if (!useAdjusted && adjCloses.length === 0) {
+      console.warn(`警告: ${ticker} 沒有調整後價格數據，計算結果可能不包含股息再投資效果`);
+    }
 
     if (timestamps.length === 0 || prices.length === 0) {
       console.warn(`無有效的歷史價格數據: ${ticker}`);
