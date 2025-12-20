@@ -1337,7 +1337,7 @@ const App: React.FC = () => {
                              </td>
                              <td className="px-4 py-3 text-right">
                                 {!(record.type === 'CASHFLOW' && (record as any).isTargetRecord) && (
-                                  <div className="flex gap-2 justify-end items-center">
+                                  <div className="flex gap-2 justify-end">
                                     {record.type === 'TRANSACTION' && (
                                       <button 
                                         onClick={() => {
@@ -1351,9 +1351,6 @@ const App: React.FC = () => {
                                       >
                                         編輯
                                       </button>
-                                    )}
-                                    {record.type === 'TRANSACTION' && (
-                                      <span className="text-xs text-slate-400">操作</span>
                                     )}
                                     <button onClick={() => {
                                       if (record.type === 'TRANSACTION') {
@@ -1593,5 +1590,3 @@ const App: React.FC = () => {
 };
 
 export default App;
-
-
