@@ -1,19 +1,23 @@
 
 import React, { useRef, useState } from 'react';
+import { Language, t, translate } from '../utils/i18n';
 
 interface Props {
   onExport: () => void;
   onImport: (file: File) => void;
   authorizedUsers: string[]; 
   currentUser: string;
+  language: Language;
 }
 
 const HelpView: React.FC<Props> = ({ 
   onExport, 
   onImport, 
   authorizedUsers,
-  currentUser
+  currentUser,
+  language
 }) => {
+  const translations = t(language);
   const fileInputRef = useRef<HTMLInputElement>(null);
   
   // State for custom confirmation modals

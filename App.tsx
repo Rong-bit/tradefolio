@@ -1465,6 +1465,7 @@ const App: React.FC = () => {
                 onAdd={addAccount}
                 onUpdate={updateAccount}
                 onDelete={removeAccount}
+                language={language}
               />
             )}
 
@@ -1490,6 +1491,7 @@ const App: React.FC = () => {
                  exchangeRate={exchangeRate}
                  targets={rebalanceTargets}
                  onUpdateTargets={updateRebalanceTargets}
+                 language={language}
                />
             )}
 
@@ -1500,6 +1502,7 @@ const App: React.FC = () => {
                    market: h.market,
                    annualizedReturn: h.annualizedReturn
                  }))}
+                 language={language}
                />
             )}
 
@@ -1509,6 +1512,7 @@ const App: React.FC = () => {
                  onImport={handleImportData}
                  authorizedUsers={GLOBAL_AUTHORIZED_USERS}
                  currentUser={currentUser}
+                 language={language}
                />
             )}
          </div>

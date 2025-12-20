@@ -4,12 +4,15 @@ import { formatCurrency } from '../utils/calculations';
 import { v4 as uuidv4 } from 'uuid';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, BarChart, Bar } from 'recharts';
 import { fetchAnnualizedReturn } from '../services/yahooFinanceService';
+import { Language, t, translate } from '../utils/i18n';
 
 interface Props {
   holdings?: Array<{ ticker: string; market: Market; annualizedReturn: number }>; // 可選：從現有持倉導入
+  language: Language;
 }
 
-const AssetAllocationSimulator: React.FC<Props> = ({ holdings = [] }) => {
+const AssetAllocationSimulator: React.FC<Props> = ({ holdings = [], language }) => {
+  const translations = t(language);
   const [assets, setAssets] = useState<AssetSimulationItem[]>([]);
   const [initialAmount, setInitialAmount] = useState<number>(1000000); // 預設 100 萬
   const [years, setYears] = useState<number>(10); // 預設 10 年
@@ -137,17 +140,17 @@ const AssetAllocationSimulator: React.FC<Props> = ({ holdings = [] }) => {
   const addAsset = () => {
     setErrorMessage('');
     if (!newTicker.trim()) {
-      setErrorMessage('請輸入股票代號');
+      setErrorMessage(translations.simulator.errorEnterTicker);
       return;
     }
     if (newAllocation <= 0 || newAllocation > 100) {
-      setErrorMessage('配置比例必須在 0% 到 100% 之間');
+      setErrorMessage(translations.simulator.errorAllocationRange);
       return;
     }
 
     const currentTotal = assets.reduce((sum, a) => sum + a.allocation, 0);
     if (currentTotal + newAllocation > 100) {
-      setErrorMessage(`配置比例總和不能超過 100%，目前為 ${currentTotal.toFixed(1)}%`);
+      setErrorMessage(translate('simulator.errorAllocationSum', language));
       return;
     }
 
@@ -169,7 +172,7 @@ const AssetAllocationSimulator: React.FC<Props> = ({ holdings = [] }) => {
   const importFromHoldings = () => {
     setErrorMessage('');
     if (holdings.length === 0) {
-      setErrorMessage('目前沒有持倉資料可導入');
+      setErrorMessage(translations.simulator.errorNoHoldings);
       return;
     }
 
@@ -195,7 +198,7 @@ const AssetAllocationSimulator: React.FC<Props> = ({ holdings = [] }) => {
   //
   const fetchReturnForTicker = async () => {
     if (!newTicker.trim()) {
-      setErrorMessage('請先輸入股票代號');
+      setErrorMessage(translations.simulator.errorEnterTickerFirst);
       return;
     }
 
@@ -211,11 +214,11 @@ const AssetAllocationSimulator: React.FC<Props> = ({ holdings = [] }) => {
         setNewAnnualReturn(annualReturn);
         setErrorMessage(''); // 清除錯誤訊息
       } else {
-        setErrorMessage(`無法取得 ${newTicker.trim().toUpperCase()} 的年化報酬率，請手動輸入`);
+        setErrorMessage(translate('simulator.errorCannotGetReturn', language, { ticker: newTicker.trim().toUpperCase() }));
       }
     } catch (error) {
       console.error('查詢年化報酬率時發生錯誤:', error);
-      setErrorMessage(`查詢年化報酬率失敗，請手動輸入`);
+      setErrorMessage(translations.simulator.errorQueryFailed);
     } finally {
       setLoadingReturn(false);
       setLoadingTicker('');
@@ -234,7 +237,7 @@ const AssetAllocationSimulator: React.FC<Props> = ({ holdings = [] }) => {
             return sum + item.allocation;
           }, 0);
           if (currentTotal + value > 100) {
-            setErrorMessage('配置比例總和不能超過 100%');
+            setErrorMessage(translate('simulator.errorAllocationSum', language));
             return a;
           }
         }

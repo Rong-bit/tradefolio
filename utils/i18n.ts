@@ -209,6 +209,158 @@ export interface Translations {
     avgPrice: string;
     noHoldings: string;
   };
+  // 帳戶管理
+  accounts: {
+    addAccount: string;
+    accountName: string;
+    accountNamePlaceholder: string;
+    currency: string;
+    currencyTWD: string;
+    currencyUSD: string;
+    currencyJPY: string;
+    subBrokerage: string;
+    add: string;
+    update: string;
+    editAccount: string;
+    balance: string;
+    cancel: string;
+    updateAccount: string;
+    confirmDelete: string;
+    confirmDeleteMessage: string;
+    deleteWarning: string;
+    deleteAccount: string;
+    noAccounts: string;
+    cashBalance: string;
+    editAccountTitle: string;
+  };
+  // 再平衡
+  rebalance: {
+    title: string;
+    resetToCurrent: string;
+    totalAssets: string;
+    enable: string;
+    symbol: string;
+    currentPrice: string;
+    currentValue: string;
+    currentWeight: string;
+    targetWeight: string;
+    targetValue: string;
+    adjustAmount: string;
+    suggestedAction: string;
+    cash: string;
+    totalEnabled: string;
+    remainingFunds: string;
+    notParticipating: string;
+    accounts: string;
+    description: string;
+    description1: string;
+    description2: string;
+    description3: string;
+    description4: string;
+    description5: string;
+    description6: string;
+    buy: string;
+    sell: string;
+  };
+  // 模擬器
+  simulator: {
+    title: string;
+    description: string;
+    descriptionWarning: string;
+    basicSettings: string;
+    initialAmount: string;
+    investmentYears: string;
+    regularInvestment: string;
+    regularAmount: string;
+    frequency: string;
+    monthly: string;
+    quarterly: string;
+    yearly: string;
+    annualTotal: string;
+    setToZero: string;
+    importFromHoldings: string;
+    importButton: string;
+    manualAdd: string;
+    ticker: string;
+    tickerPlaceholder: string;
+    market: string;
+    marketTW: string;
+    marketUS: string;
+    marketUK: string;
+    marketJP: string;
+    annualReturn: string;
+    autoQuery: string;
+    querying: string;
+    allocation: string;
+    add: string;
+    assetList: string;
+    autoBalance: string;
+    clearAll: string;
+    allocationSum: string;
+    totalInvested: string;
+    finalValue: string;
+    totalReturn: string;
+    portfolioAnnualReturn: string;
+    initial: string;
+    yearlyProjection: string;
+    yearlyReturnAnalysis: string;
+    detailedYearlyProjection: string;
+    year: string;
+    assetValue: string;
+    yearlyReturn: string;
+    cumulativeInvestment: string;
+    yearlyReturnRate: string;
+    allocationWarning: string;
+    confirmClear: string;
+    confirmClearMessage: string;
+    dataWarning: string;
+    dataWarningDesc: string;
+    cagrExplanation: string;
+    cagrFormula: string;
+    cagrFormulaDesc: string;
+    cagrExample: string;
+    cagrExampleValue: string;
+    errorEnterTicker: string;
+    errorAllocationRange: string;
+    errorAllocationSum: string;
+    errorNoHoldings: string;
+    errorEnterTickerFirst: string;
+    errorCannotGetReturn: string;
+    errorQueryFailed: string;
+    close: string;
+    cancel: string;
+    yearPrefix: string;
+    yearSuffix: string;
+    queryingReturn: string;
+    autoQueryTitle: string;
+  };
+  // 系統說明
+  help: {
+    dataManagement: string;
+    export: string;
+    exportDesc: string;
+    downloadBackup: string;
+    import: string;
+    importWarning: string;
+    uploadBackup: string;
+    authorizedUsers: string;
+    authorizedUsersDesc: string;
+    emailAccount: string;
+    status: string;
+    systemAuthorized: string;
+    contact: string;
+    contactTitle: string;
+    contactDesc: string;
+    contactEmail: string;
+    documentation: string;
+    copyAll: string;
+    copied: string;
+    print: string;
+    confirmImport: string;
+    confirmImportMessage: string;
+    confirmImportWarning: string;
+    confirmOverride: string;
+  };
 }
 
 // 繁體中文翻譯
@@ -410,6 +562,154 @@ const zhTW: Translations = {
     avgPrice: '均價',
     noHoldings: '尚無持倉資料，請新增交易。',
   },
+  accounts: {
+    addAccount: '新增證券戶 / 銀行帳戶',
+    accountName: '帳戶名稱',
+    accountNamePlaceholder: '例如: 富邦證券, Firstrade',
+    currency: '幣別',
+    currencyTWD: '台幣',
+    currencyUSD: '美金',
+    currencyJPY: '日幣',
+    subBrokerage: '複委託',
+    add: '新增',
+    update: '更新',
+    editAccount: '編輯帳戶',
+    balance: '餘額',
+    cancel: '取消',
+    updateAccount: '更新帳戶',
+    confirmDelete: '確認刪除帳戶',
+    confirmDeleteMessage: '您確定要刪除「{name}」嗎？',
+    deleteWarning: '注意：這不會刪除該帳戶下的歷史交易紀錄，但在篩選時可能會出現異常。',
+    deleteAccount: '確認刪除',
+    noAccounts: '尚無帳戶，請上方新增第一個證券戶。',
+    cashBalance: '現金餘額',
+    editAccountTitle: '編輯帳戶',
+  },
+  rebalance: {
+    title: '個股再平衡',
+    resetToCurrent: '帶入目前比重',
+    totalAssets: '總資產 (含現金)',
+    enable: '平衡',
+    symbol: '標的',
+    currentPrice: '現價',
+    currentValue: '現值',
+    currentWeight: '目前佔比',
+    targetWeight: '目標佔比',
+    targetValue: '目標價值',
+    adjustAmount: '調整金額',
+    suggestedAction: '建議操作',
+    cash: '現金',
+    totalEnabled: '已啟用項目',
+    remainingFunds: '剩餘資金',
+    notParticipating: '不參與平衡',
+    accounts: '個帳戶',
+    description: '說明：',
+    description1: '相同名稱的個股會自動合併顯示，目標佔比會按現值比例分配給各個帳戶。',
+    description2: '勾選「平衡」欄位來選擇哪些股債需要再平衡，未勾選的項目將不參與再平衡計算。',
+    description3: '現金部分也可以勾選，若勾選現金，剩餘比例將自動分配給現金；若不勾選，現金將維持現狀。',
+    description4: '目標佔比會自動儲存。若總和不為 100%，剩餘比例將自動分配給已勾選的現金。',
+    description5: '若「現金」目標比例為負值，代表您的股票目標配置超過 100%，請調降部分持股目標。',
+    description6: '點擊「帶入目前比重」可快速重置所有目標值為當前現況。',
+    buy: '買',
+    sell: '賣',
+  },
+  simulator: {
+    title: '資產配置模擬說明',
+    description: '此工具可讓您比較不同資產配置的預期獲利。請輸入各種股票或 ETF 的成立以來年化報酬率作為假設值，系統會根據您的配置比例計算組合的預期表現。',
+    descriptionWarning: '⚠️ 注意：過往績效不代表未來表現，此模擬僅供參考。',
+    basicSettings: '基本設定',
+    initialAmount: '初始投資金額',
+    investmentYears: '投資年數',
+    regularInvestment: '定期定額投資（選填）',
+    regularAmount: '定期定額金額',
+    frequency: '投入頻率',
+    monthly: '每月投入',
+    quarterly: '每季投入',
+    yearly: '每年投入',
+    annualTotal: '年度總投入',
+    setToZero: '設定為 0 則不使用定期定額',
+    importFromHoldings: '現有持倉導入',
+    importButton: '從現有持倉導入',
+    manualAdd: '手動添加資產',
+    ticker: '股票代號',
+    tickerPlaceholder: '例如: 0050',
+    market: '市場',
+    marketTW: '台股',
+    marketUS: '美股',
+    marketUK: '英股',
+    marketJP: '日股',
+    annualReturn: '年化報酬率',
+    autoQuery: '🔍 自動查詢',
+    querying: '查詢中',
+    allocation: '配置比例',
+    add: '添加',
+    assetList: '資產配置列表',
+    autoBalance: '自動平衡',
+    clearAll: '清空全部',
+    allocationSum: '配置比例總和:',
+    totalInvested: '總投入金額',
+    finalValue: '最終價值',
+    totalReturn: '總報酬',
+    portfolioAnnualReturn: '組合年化報酬',
+    initial: '初始',
+    yearlyProjection: '年度預測趨勢圖',
+    yearlyReturnAnalysis: '年度報酬分析',
+    detailedYearlyProjection: '詳細年度預測',
+    year: '年份',
+    assetValue: '資產價值',
+    yearlyReturn: '年度報酬',
+    cumulativeInvestment: '累積投入',
+    yearlyReturnRate: '年度報酬率',
+    allocationWarning: '⚠️ 配置比例總和必須等於 100%，目前為',
+    confirmClear: '確認清空',
+    confirmClearMessage: '確定要清空所有資產配置嗎？此操作無法復原。',
+    dataWarning: '⚠️ 數據完整性警告：',
+    dataWarningDesc: '建議：如果計算結果明顯低於預期，可能是因為 Yahoo Finance 的歷史數據不完整。您可以參考官方資料或手動輸入更準確的年化報酬率。',
+    cagrExplanation: '📊 年化報酬率計算說明：',
+    cagrFormula: 'CAGR = ((當前價格 / 初始價格) ^ (1 / 年數)) - 1',
+    cagrFormulaDesc: '系統使用 CAGR (複合年成長率) 公式計算：',
+    cagrExample: '這表示如果從上市時買入並持有至今，每年的平均複合報酬率。',
+    cagrExampleValue: '範例：股票從 100 元漲到 200 元，經過 5 年，年化報酬率約為 14.87%',
+    errorEnterTicker: '請輸入股票代號',
+    errorAllocationRange: '配置比例必須在 0% 到 100% 之間',
+    errorAllocationSum: '配置比例總和不能超過 100%',
+    errorNoHoldings: '目前沒有持倉資料可導入',
+    errorEnterTickerFirst: '請先輸入股票代號',
+    errorCannotGetReturn: '無法取得 {ticker} 的年化報酬率，請手動輸入',
+    errorQueryFailed: '查詢年化報酬率失敗，請手動輸入',
+    close: '關閉',
+    cancel: '取消',
+    yearPrefix: '第',
+    yearSuffix: '年',
+    queryingReturn: '正在查詢 {ticker} 的年化報酬率...',
+    autoQueryTitle: '自動查詢上市以來的年化報酬率',
+  },
+  help: {
+    dataManagement: '資料備份與還原',
+    export: '備份資料',
+    exportDesc: '將您的交易紀錄、帳戶設定與股價資訊匯出為 JSON 檔案，建議定期備份以免資料遺失。',
+    downloadBackup: '下載備份檔 (.json)',
+    import: '還原資料',
+    importWarning: '警告：匯入備份檔將會完全覆蓋您目前的系統資料。',
+    uploadBackup: '上傳備份檔',
+    authorizedUsers: '使用者授權名單',
+    authorizedUsersDesc: '以下為系統預設可免密碼登入的 Email 名單 (已隱碼保護)：',
+    emailAccount: 'Email 帳號',
+    status: '狀態',
+    systemAuthorized: '系統授權',
+    contact: '購買授權與聯絡管理員',
+    contactTitle: '喜歡這個系統嗎？',
+    contactDesc: '如果您是非會員並希望獲得永久使用權限，或是有任何功能建議與 Bug 回報，歡迎聯繫開發者。',
+    contactEmail: '聯絡管理員',
+    documentation: '使用說明',
+    copyAll: '複製全文',
+    copied: '已複製!',
+    print: '列印',
+    confirmImport: '警告：確認覆蓋資料？',
+    confirmImportMessage: '您即將匯入 {fileName}。',
+    confirmImportWarning: '這將會完全清除目前的交易紀錄與設定，且無法復原。',
+    confirmOverride: '確認覆蓋',
+  },
 };
 
 // 英文翻譯
@@ -610,6 +910,154 @@ const en: Translations = {
     dailyChange: 'Daily Change',
     avgPrice: 'Avg Price',
     noHoldings: 'No holdings. Please add transactions.',
+  },
+  accounts: {
+    addAccount: 'Add Brokerage / Bank Account',
+    accountName: 'Account Name',
+    accountNamePlaceholder: 'e.g. Fubon Securities, Firstrade',
+    currency: 'Currency',
+    currencyTWD: 'TWD',
+    currencyUSD: 'USD',
+    currencyJPY: 'JPY',
+    subBrokerage: 'Sub-brokerage',
+    add: 'Add',
+    update: 'Update',
+    editAccount: 'Edit Account',
+    balance: 'Balance',
+    cancel: 'Cancel',
+    updateAccount: 'Update Account',
+    confirmDelete: 'Confirm Delete Account',
+    confirmDeleteMessage: 'Are you sure you want to delete "{name}"?',
+    deleteWarning: 'Note: This will not delete historical transaction records for this account, but may cause issues when filtering.',
+    deleteAccount: 'Confirm Delete',
+    noAccounts: 'No accounts yet. Please add your first brokerage account above.',
+    cashBalance: 'Cash Balance',
+    editAccountTitle: 'Edit Account',
+  },
+  rebalance: {
+    title: 'Stock Rebalancing',
+    resetToCurrent: 'Reset to Current Weights',
+    totalAssets: 'Total Assets (Incl. Cash)',
+    enable: 'Enable',
+    symbol: 'Symbol (Account)',
+    currentPrice: 'Current Price',
+    currentValue: 'Current Value',
+    currentWeight: 'Current Weight',
+    targetWeight: 'Target Weight %',
+    targetValue: 'Target Value',
+    adjustAmount: 'Adjust Amount',
+    suggestedAction: 'Suggested Action (Shares)',
+    cash: 'Cash',
+    totalEnabled: 'Total (Enabled Items)',
+    remainingFunds: 'Remaining Funds',
+    notParticipating: 'Not Participating',
+    accounts: ' accounts',
+    description: 'Description:',
+    description1: 'Stocks with the same name are automatically merged and displayed. Target weights are allocated proportionally to each account based on current values.',
+    description2: 'Check the "Enable" column to select which stocks/bonds need rebalancing. Unchecked items will not participate in rebalancing calculations.',
+    description3: 'Cash can also be checked. If checked, the remaining percentage will be automatically allocated to cash; if not checked, cash will remain unchanged.',
+    description4: 'Target weights are automatically saved. If the total is not 100%, the remaining percentage will be automatically allocated to checked cash.',
+    description5: 'If the "Cash" target percentage is negative, it means your stock target allocation exceeds 100%. Please reduce some stock target percentages.',
+    description6: 'Click "Reset to Current Weights" to quickly reset all target values to current status.',
+    buy: 'Buy',
+    sell: 'Sell',
+  },
+  simulator: {
+    title: 'Asset Allocation Simulator Description',
+    description: 'This tool allows you to compare expected returns of different asset allocations. Enter the annualized return rates since inception for various stocks or ETFs as assumptions, and the system will calculate the expected performance of your portfolio based on your allocation ratios.',
+    descriptionWarning: '⚠️ Note: Past performance does not guarantee future results. This simulation is for reference only.',
+    basicSettings: 'Basic Settings',
+    initialAmount: 'Initial Investment Amount (TWD)',
+    investmentYears: 'Investment Years',
+    regularInvestment: 'Regular Investment (Optional)',
+    regularAmount: 'Regular Investment Amount (TWD)',
+    frequency: 'Investment Frequency',
+    monthly: 'Monthly',
+    quarterly: 'Quarterly',
+    yearly: 'Yearly',
+    annualTotal: 'Annual Total Investment',
+    setToZero: 'Set to 0 to disable regular investment',
+    importFromHoldings: 'Import from Existing Holdings',
+    importButton: 'Import from Existing Holdings',
+    manualAdd: 'Manually Add Asset',
+    ticker: 'Stock Ticker',
+    tickerPlaceholder: 'e.g. 0050',
+    market: 'Market',
+    marketTW: 'Taiwan (TW)',
+    marketUS: 'US (US)',
+    marketUK: 'UK (UK)',
+    marketJP: 'Japan (JP)',
+    annualReturn: 'Annualized Return (%)',
+    autoQuery: '🔍 Auto Query',
+    querying: 'Querying',
+    allocation: 'Allocation (%)',
+    add: 'Add',
+    assetList: 'Asset Allocation List',
+    autoBalance: 'Auto Balance',
+    clearAll: 'Clear All',
+    allocationSum: 'Total Allocation:',
+    totalInvested: 'Total Invested',
+    finalValue: 'Final Value',
+    totalReturn: 'Total Return',
+    portfolioAnnualReturn: 'Portfolio Annualized Return',
+    initial: 'Initial',
+    yearlyProjection: 'Yearly Projection Trend Chart',
+    yearlyReturnAnalysis: 'Yearly Return Analysis',
+    detailedYearlyProjection: 'Detailed Yearly Projection',
+    year: 'Year',
+    assetValue: 'Asset Value',
+    yearlyReturn: 'Yearly Return',
+    cumulativeInvestment: 'Cumulative Investment',
+    yearlyReturnRate: 'Yearly Return Rate',
+    allocationWarning: '⚠️ Total allocation must equal 100%, currently',
+    confirmClear: 'Confirm Clear',
+    confirmClearMessage: 'Are you sure you want to clear all asset allocations? This action cannot be undone.',
+    dataWarning: '⚠️ Data Integrity Warning:',
+    dataWarningDesc: 'Suggestion: If the calculation results are significantly lower than expected, it may be because Yahoo Finance historical data is incomplete. You can refer to official sources or manually enter a more accurate annualized return rate.',
+    cagrExplanation: '📊 Annualized Return Calculation Explanation:',
+    cagrFormula: 'CAGR = ((Current Price / Initial Price) ^ (1 / Years)) - 1',
+    cagrFormulaDesc: 'The system uses the CAGR (Compound Annual Growth Rate) formula:',
+    cagrExample: 'This represents the average compound return rate per year if purchased at IPO and held until now.',
+    cagrExampleValue: 'Example: Stock rises from 100 to 200 over 5 years, annualized return is approximately 14.87%',
+    errorEnterTicker: 'Please enter stock ticker',
+    errorAllocationRange: 'Allocation must be between 0% and 100%',
+    errorAllocationSum: 'Total allocation cannot exceed 100%',
+    errorNoHoldings: 'No holdings data available to import',
+    errorEnterTickerFirst: 'Please enter stock ticker first',
+    errorCannotGetReturn: 'Unable to get annualized return for {ticker}, please enter manually',
+    errorQueryFailed: 'Failed to query annualized return, please enter manually',
+    close: 'Close',
+    cancel: 'Cancel',
+    yearPrefix: 'Year',
+    yearSuffix: '',
+    queryingReturn: 'Querying annualized return for {ticker}...',
+    autoQueryTitle: 'Auto query annualized return since IPO',
+  },
+  help: {
+    dataManagement: 'Data Management',
+    export: 'Export',
+    exportDesc: 'Export your transaction records, account settings, and stock price information as a JSON file. Regular backups are recommended to prevent data loss.',
+    downloadBackup: 'Download Backup (.json)',
+    import: 'Import',
+    importWarning: 'Warning: Importing a backup file will completely overwrite your current system data.',
+    uploadBackup: 'Upload Backup File',
+    authorizedUsers: 'Authorized Users',
+    authorizedUsersDesc: 'The following is the system default list of emails that can log in without a password (masked for privacy):',
+    emailAccount: 'Email Account',
+    status: 'Status',
+    systemAuthorized: 'System Authorized',
+    contact: 'Purchase Authorization & Contact Administrator',
+    contactTitle: 'Like this system?',
+    contactDesc: 'If you are a non-member and wish to obtain permanent usage rights, or have any feature suggestions and bug reports, please contact the developer.',
+    contactEmail: 'Contact Administrator (Email)',
+    documentation: 'Documentation',
+    copyAll: 'Copy All',
+    copied: 'Copied!',
+    print: 'Print',
+    confirmImport: 'Warning: Confirm Override Data?',
+    confirmImportMessage: 'You are about to import {fileName}.',
+    confirmImportWarning: 'This will completely clear your current transaction records and settings, and cannot be undone.',
+    confirmOverride: 'Confirm Override',
   },
 };
 

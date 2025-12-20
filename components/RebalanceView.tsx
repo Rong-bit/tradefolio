@@ -2,6 +2,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { PortfolioSummary, Holding, Market } from '../types';
 import { formatCurrency } from '../utils/calculations';
+import { Language, t } from '../utils/i18n';
 
 interface Props {
   summary: PortfolioSummary;
@@ -9,9 +10,11 @@ interface Props {
   exchangeRate: number;
   targets: Record<string, number>;
   onUpdateTargets: (targets: Record<string, number>) => void;
+  language: Language;
 }
 
-const RebalanceView: React.FC<Props> = ({ summary, holdings, exchangeRate, targets, onUpdateTargets }) => {
+const RebalanceView: React.FC<Props> = ({ summary, holdings, exchangeRate, targets, onUpdateTargets, language }) => {
+  const translations = t(language);
   const totalPortfolioValue = summary.totalValueTWD + summary.cashBalanceTWD;
   
   // 追蹤哪些項目需要再平衡（包括現金）
@@ -232,17 +235,17 @@ const RebalanceView: React.FC<Props> = ({ summary, holdings, exchangeRate, targe
     <div className="space-y-6">
       <div className="bg-white p-6 rounded-lg shadow">
         <div className="flex justify-between items-center mb-6">
-          <h3 className="font-bold text-lg text-slate-800">個股再平衡 (Stock Rebalancing)</h3>
+          <h3 className="font-bold text-lg text-slate-800">{translations.rebalance.title}</h3>
           <div className="flex flex-col items-end">
              <div className="flex items-center gap-4">
                <button 
                   onClick={handleResetToCurrent}
                   className="text-xs bg-slate-100 hover:bg-slate-200 text-slate-600 px-3 py-1.5 rounded border border-slate-300 transition"
                >
-                 ↺ 帶入目前比重
+                 ↺ {translations.rebalance.resetToCurrent}
                </button>
                <div>
-                 <p className="text-xs text-slate-500 text-right">總資產 (含現金)</p>
+                 <p className="text-xs text-slate-500 text-right">{translations.rebalance.totalAssets}</p>
                  <p className="text-xl font-bold font-mono text-slate-800">
                    {formatCurrency(totalPortfolioValue, 'TWD')}
                  </p>
@@ -255,15 +258,15 @@ const RebalanceView: React.FC<Props> = ({ summary, holdings, exchangeRate, targe
           <table className="min-w-full text-sm text-left">
             <thead className="bg-slate-50 text-slate-500 uppercase font-medium">
               <tr>
-                <th className="px-4 py-3 w-12">平衡</th>
-                <th className="px-4 py-3">標的 (帳戶)</th>
-                <th className="px-4 py-3 text-right">現價</th>
-                <th className="px-4 py-3 text-right">現值 (TWD)</th>
-                <th className="px-4 py-3 text-right">目前佔比</th>
-                <th className="px-4 py-3 text-right w-36">目標佔比 %</th>
-                <th className="px-4 py-3 text-right">目標價值</th>
-                <th className="px-4 py-3 text-right">調整金額</th>
-                <th className="px-4 py-3 text-right">建議操作 (股)</th>
+                <th className="px-4 py-3 w-12">{translations.rebalance.enable}</th>
+                <th className="px-4 py-3">{translations.rebalance.symbol} {language === 'zh-TW' ? '(帳戶)' : '(Account)'}</th>
+                <th className="px-4 py-3 text-right">{translations.rebalance.currentPrice}</th>
+                <th className="px-4 py-3 text-right">{translations.rebalance.currentValue} {language === 'zh-TW' ? '(TWD)' : ''}</th>
+                <th className="px-4 py-3 text-right">{translations.rebalance.currentWeight}</th>
+                <th className="px-4 py-3 text-right w-36">{translations.rebalance.targetWeight} %</th>
+                <th className="px-4 py-3 text-right">{translations.rebalance.targetValue}</th>
+                <th className="px-4 py-3 text-right">{translations.rebalance.adjustAmount}</th>
+                <th className="px-4 py-3 text-right">{translations.rebalance.suggestedAction} {language === 'zh-TW' ? '(股)' : '(Shares)'}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
@@ -271,7 +274,7 @@ const RebalanceView: React.FC<Props> = ({ summary, holdings, exchangeRate, targe
                 const isBuy = row.diffValTwd > 0;
                 const isEnabled = row.isEnabled;
                 const accountInfo = row.accountIds.length > 1 
-                  ? ` (${row.accountIds.length}個帳戶)` 
+                  ? (language === 'zh-TW' ? ` (${row.accountIds.length}個帳戶)` : ` (${row.accountIds.length}${translations.rebalance.accounts})`) 
                   : '';
                 return (
                   <tr key={row.mergedKey} className={`hover:bg-slate-50 ${!isEnabled ? 'opacity-50' : ''}`}>
@@ -330,7 +333,7 @@ const RebalanceView: React.FC<Props> = ({ summary, holdings, exchangeRate, targe
                     <td className={`px-4 py-3 text-right font-bold ${isEnabled ? (isBuy ? 'text-red-600' : 'text-green-600') : 'text-slate-300'}`}>
                       {isEnabled ? (
                         <span>
-                          {isBuy ? '買' : '賣'} {Math.abs(row.diffShares).toFixed(row.market === Market.US ? 2 : 0)}
+                          {isBuy ? translations.rebalance.buy : translations.rebalance.sell} {Math.abs(row.diffShares).toFixed(row.market === Market.US ? 2 : 0)}
                         </span>
                       ) : (
                         <span className="text-slate-300">-</span>
@@ -350,7 +353,7 @@ const RebalanceView: React.FC<Props> = ({ summary, holdings, exchangeRate, targe
                     className="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
                   />
                 </td>
-                <td className="px-4 py-3 text-slate-700">現金 (Cash)</td>
+                <td className="px-4 py-3 text-slate-700">{translations.rebalance.cash}</td>
                 <td className="px-4 py-3 text-right">-</td>
                 <td className="px-4 py-3 text-right font-mono">{formatCurrency(summary.cashBalanceTWD, 'TWD')}</td>
                 <td className="px-4 py-3 text-right">{((summary.cashBalanceTWD / totalPortfolioValue) * 100).toFixed(1)}%</td>
@@ -364,13 +367,13 @@ const RebalanceView: React.FC<Props> = ({ summary, holdings, exchangeRate, targe
                   {formatCurrency(diffCashTwd, 'TWD')}
                 </td>
                 <td className="px-4 py-3 text-right text-xs text-slate-400">
-                  {isCashEnabled ? '(剩餘資金)' : '(不參與平衡)'}
+                  {isCashEnabled ? `(${translations.rebalance.remainingFunds})` : `(${translations.rebalance.notParticipating})`}
                 </td>
               </tr>
             </tbody>
             <tfoot className="bg-slate-100 font-bold border-t-2 border-slate-300">
                <tr>
-                 <td colSpan={5} className="px-4 py-3 text-right">Total (已啟用項目)</td>
+                 <td colSpan={5} className="px-4 py-3 text-right">{language === 'zh-TW' ? '總計 (' : 'Total ('}{translations.rebalance.totalEnabled}{language === 'zh-TW' ? ')' : ')'}</td>
                  <td className={`px-4 py-3 text-right ${Math.abs(totalTargetPct + cashTargetPct - 100) > 0.1 ? 'text-red-600' : 'text-slate-800'}`}>
                    {(totalTargetPct + cashTargetPct).toFixed(0)}%
                  </td>
@@ -381,14 +384,14 @@ const RebalanceView: React.FC<Props> = ({ summary, holdings, exchangeRate, targe
         </div>
 
         <div className="mt-4 p-4 bg-yellow-50 border border-yellow-200 rounded text-sm text-yellow-800">
-           <p className="font-bold mb-1">💡 說明：</p>
+           <p className="font-bold mb-1">💡 {translations.rebalance.description}</p>
            <ul className="list-disc pl-5 space-y-1">
-             <li>相同名稱的個股會自動合併顯示，目標佔比會按現值比例分配給各個帳戶。</li>
-             <li>勾選「平衡」欄位來選擇哪些股債需要再平衡，未勾選的項目將不參與再平衡計算。</li>
-             <li>現金部分也可以勾選，若勾選現金，剩餘比例將自動分配給現金；若不勾選，現金將維持現狀。</li>
-             <li>目標佔比會自動儲存。若總和不為 100%，剩餘比例將自動分配給已勾選的現金。</li>
-             <li>若「現金」目標比例為負值，代表您的股票目標配置超過 100%，請調降部分持股目標。</li>
-             <li>點擊「帶入目前比重」可快速重置所有目標值為當前現況。</li>
+             <li>{translations.rebalance.description1}</li>
+             <li>{translations.rebalance.description2}</li>
+             <li>{translations.rebalance.description3}</li>
+             <li>{translations.rebalance.description4}</li>
+             <li>{translations.rebalance.description5}</li>
+             <li>{translations.rebalance.description6}</li>
            </ul>
         </div>
       </div>
