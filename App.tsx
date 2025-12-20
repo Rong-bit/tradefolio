@@ -1453,7 +1453,7 @@ const App: React.FC = () => {
           accounts={accounts} 
           onAdd={addTransaction}
           onUpdate={updateTransaction}
-          editingTransaction={transactionToEdit}
+          editingTransaction={transactionToEdit || undefined}
           onClose={() => {
             setIsFormOpen(false);
             setTransactionToEdit(null);
