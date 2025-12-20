@@ -448,9 +448,6 @@ const FundManager: React.FC<Props> = ({
                                編輯
                              </button>
                            )}
-                           {onUpdate && (
-                             <span className="text-xs text-slate-400">操作</span>
-                           )}
                            <button onClick={() => onDelete(cf.id)} className="text-red-400 hover:text-red-600 text-xs border border-red-200 px-2 py-1 rounded hover:bg-red-50">刪除</button>
                          </div>
                        </td>
