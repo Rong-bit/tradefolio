@@ -2,17 +2,20 @@
 import React, { useState, useMemo } from 'react';
 import { Holding, Market, Account, Currency } from '../types';
 import { formatCurrency } from '../utils/calculations';
+import { Language, t } from '../utils/i18n';
 
 interface Props {
   holdings: Holding[];
   accounts: Account[];
   onUpdatePrice: (key: string, price: number) => void;
   onAutoUpdate: () => Promise<void>;
+  language: Language;
 }
 
 type DisplayMode = 'merged' | 'detailed';
 
-const HoldingsTable: React.FC<Props> = ({ holdings, accounts, onUpdatePrice, onAutoUpdate }) => {
+const HoldingsTable: React.FC<Props> = ({ holdings, accounts, onUpdatePrice, onAutoUpdate, language }) => {
+  const translations = t(language);
   const [isUpdating, setIsUpdating] = useState(false);
   const [displayMode, setDisplayMode] = useState<DisplayMode>('merged');
 
@@ -107,11 +110,11 @@ const HoldingsTable: React.FC<Props> = ({ holdings, accounts, onUpdatePrice, onA
   const handleAutoUpdateClick = async () => {
     if (isUpdating) return;
     setIsUpdating(true);
-    try {
+      try {
       await onAutoUpdate();
-      alert("股價與匯率更新完成！");
+      alert(language === 'zh-TW' ? "股價與匯率更新完成！" : "Prices and exchange rates updated successfully!");
     } catch (error) {
-      alert("更新失敗，請確認網路或 API Key。");
+      alert(language === 'zh-TW' ? "更新失敗，請確認網路或 API Key。" : "Update failed. Please check your network or API Key.");
     } finally {
       setIsUpdating(false);
     }
@@ -124,7 +127,7 @@ const HoldingsTable: React.FC<Props> = ({ holdings, accounts, onUpdatePrice, onA
           <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-indigo-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
           </svg>
-          資產配置明細 (Portfolio Holdings)
+          {translations.holdings.portfolioHoldings}
         </h3>
         <div className="flex items-center gap-2">
           {/* 切換顯示模式按鈕 */}
@@ -137,7 +140,7 @@ const HoldingsTable: React.FC<Props> = ({ holdings, accounts, onUpdatePrice, onA
                   : 'text-slate-600 hover:bg-slate-50'
               }`}
             >
-              合併顯示 (依標的)
+              {translations.holdings.mergedDisplay}
             </button>
             <button
               onClick={() => setDisplayMode('detailed')}
@@ -147,7 +150,7 @@ const HoldingsTable: React.FC<Props> = ({ holdings, accounts, onUpdatePrice, onA
                   : 'text-slate-600 hover:bg-slate-50'
               }`}
             >
-              明細顯示 (依帳戶)
+              {translations.holdings.detailedDisplay}
             </button>
           </div>
           <button 
@@ -162,14 +165,14 @@ const HoldingsTable: React.FC<Props> = ({ holdings, accounts, onUpdatePrice, onA
                   <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                   <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                 </svg>
-                AI 搜尋中...
+                {translations.holdings.aiSearching}
               </>
             ) : (
               <>
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                 </svg>
-                AI 聯網更新股價 & 匯率
+                {translations.holdings.aiUpdatePrices}
               </>
             )}
           </button>
@@ -179,17 +182,17 @@ const HoldingsTable: React.FC<Props> = ({ holdings, accounts, onUpdatePrice, onA
         <table className="min-w-full text-sm text-left">
           <thead className="bg-white text-slate-500 text-xs uppercase font-bold tracking-wider border-b border-slate-100">
             <tr>
-              <th className="px-4 py-3">市場</th>
-              <th className="px-4 py-3">代號</th>
-              <th className="px-4 py-3 text-right">數量</th>
-              <th className="px-4 py-3 text-right">現價 (Updated)</th>
-              <th className="px-4 py-3 w-32 text-left">比重 (Weight)</th>
-              <th className="px-4 py-3 text-right">總成本 (Cost)</th>
-              <th className="px-4 py-3 text-right">市值 (Val)</th>
-              <th className="px-4 py-3 text-right">損益 (P/L)</th>
-              <th className="px-4 py-3 text-right">年化 (ROI)</th>
-              <th className="px-4 py-3 text-right">今日漲跌</th>
-              <th className="px-4 py-3 text-right">均價 (Avg)</th>
+              <th className="px-4 py-3">{translations.holdings.market}</th>
+              <th className="px-4 py-3">{translations.holdings.ticker}</th>
+              <th className="px-4 py-3 text-right">{translations.holdings.quantity}</th>
+              <th className="px-4 py-3 text-right">{translations.holdings.currentPrice} {language === 'zh-TW' ? '(Updated)' : ''}</th>
+              <th className="px-4 py-3 w-32 text-left">{translations.holdings.weight} {language === 'zh-TW' ? '(Weight)' : ''}</th>
+              <th className="px-4 py-3 text-right">{translations.holdings.cost} {language === 'zh-TW' ? '(Cost)' : ''}</th>
+              <th className="px-4 py-3 text-right">{translations.holdings.marketValue} {language === 'zh-TW' ? '(Val)' : ''}</th>
+              <th className="px-4 py-3 text-right">{translations.holdings.profitLoss} {language === 'zh-TW' ? '(P/L)' : ''}</th>
+              <th className="px-4 py-3 text-right">{translations.holdings.annualizedROI} {language === 'zh-TW' ? '(ROI)' : ''}</th>
+              <th className="px-4 py-3 text-right">{translations.holdings.dailyChange}</th>
+              <th className="px-4 py-3 text-right">{translations.holdings.avgPrice} {language === 'zh-TW' ? '(Avg)' : ''}</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-50 bg-white">
@@ -198,7 +201,7 @@ const HoldingsTable: React.FC<Props> = ({ holdings, accounts, onUpdatePrice, onA
               mergedHoldings.length === 0 ? (
                 <tr>
                   <td colSpan={11} className="px-6 py-12 text-center text-slate-400">
-                    尚無持倉資料，請新增交易。
+                    {translations.holdings.noHoldings}
                   </td>
                 </tr>
               ) : (
@@ -211,7 +214,7 @@ const HoldingsTable: React.FC<Props> = ({ holdings, accounts, onUpdatePrice, onA
               groupedByAccount.length === 0 ? (
                 <tr>
                   <td colSpan={11} className="px-6 py-12 text-center text-slate-400">
-                    尚無持倉資料，請新增交易。
+                    {translations.holdings.noHoldings}
                   </td>
                 </tr>
               ) : (
