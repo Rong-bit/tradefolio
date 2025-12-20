@@ -76,6 +76,7 @@ const App: React.FC = () => {
   const [isHistoricalModalOpen, setIsHistoricalModalOpen] = useState(false);
   const [isBatchUpdateMarketOpen, setIsBatchUpdateMarketOpen] = useState(false);
   const [transactionToDelete, setTransactionToDelete] = useState<string | null>(null);
+  const [transactionToEdit, setTransactionToEdit] = useState<Transaction | null>(null);
   const [cashFlowToDelete, setCashFlowToDelete] = useState<string | null>(null);
   const [alertDialog, setAlertDialog] = useState<{isOpen: boolean, title: string, message: string, type: 'info' | 'success' | 'error'}>({
     isOpen: false, title: '', message: '', type: 'info'
@@ -241,6 +242,12 @@ const App: React.FC = () => {
     const key = `${tx.market}-${tx.ticker}`;
     if (!currentPrices[key]) updatePrice(key, tx.price);
   };
+  const updateTransaction = (tx: Transaction) => {
+    setTransactions(prev => prev.map(t => t.id === tx.id ? tx : t));
+    const key = `${tx.market}-${tx.ticker}`;
+    if (!currentPrices[key]) updatePrice(key, tx.price);
+    showAlert("交易記錄已更新", "更新成功", "success");
+  };
   const handleBatchUpdateMarket = (updates: { id: string; market: Market }[]) => {
     setTransactions(prev => prev.map(tx => {
       const update = updates.find(u => u.id === tx.id);
@@ -282,6 +289,10 @@ const App: React.FC = () => {
   const cancelDeleteAllTransactions = () => setIsDeleteConfirmOpen(false);
   
   const addAccount = (acc: Account) => setAccounts(prev => [...prev, acc]);
+  const updateAccount = (acc: Account) => {
+    setAccounts(prev => prev.map(a => a.id === acc.id ? acc : a));
+    showAlert(`帳戶「${acc.name}」已更新`, "更新成功", "success");
+  };
   const removeAccount = (id: string) => {
     const account = accounts.find(a => a.id === id);
     setAccounts(prev => prev.filter(a => a.id !== id));
@@ -289,6 +300,10 @@ const App: React.FC = () => {
   };
   
   const addCashFlow = (cf: CashFlow) => setCashFlows(prev => [...prev, cf]);
+  const updateCashFlow = (cf: CashFlow) => {
+    setCashFlows(prev => prev.map(c => c.id === cf.id ? cf : c));
+    showAlert("資金記錄已更新", "更新成功", "success");
+  };
   const addBatchCashFlows = (cfs: CashFlow[]) => setCashFlows(prev => [...prev, ...cfs]);
   const removeCashFlow = (id: string) => {
     // 總是顯示確認對話框
@@ -1078,7 +1093,10 @@ const App: React.FC = () => {
                      <button onClick={() => setIsImportOpen(true)} className="bg-indigo-50 text-indigo-600 px-3 py-1.5 rounded text-sm hover:bg-indigo-100 border border-indigo-200">
                         批次匯入
                      </button>
-                     <button onClick={() => setIsFormOpen(true)} className="bg-slate-900 text-white px-4 py-2 rounded text-sm hover:bg-slate-800 shadow-lg shadow-slate-900/20">
+                     <button onClick={() => {
+                       setTransactionToEdit(null);
+                       setIsFormOpen(true);
+                     }} className="bg-slate-900 text-white px-4 py-2 rounded text-sm hover:bg-slate-800 shadow-lg shadow-slate-900/20">
                         + 記一筆
                      </button>
                   </div>
@@ -1319,14 +1337,30 @@ const App: React.FC = () => {
                              </td>
                              <td className="px-4 py-3 text-right">
                                 {!(record.type === 'CASHFLOW' && (record as any).isTargetRecord) && (
-                                  <button onClick={() => {
-                                    if (record.type === 'TRANSACTION') {
-                                      removeTransaction(record.id);
-                                    } else {
-                                      const originalId = (record as any).isSourceRecord ? record.id : record.id.replace('-target', '');
-                                      removeCashFlow(originalId);
-                                    }
-                                  }} className="text-red-400 hover:text-red-600 text-xs px-2 py-1 border border-red-100 rounded hover:bg-red-50">刪除</button>
+                                  <div className="flex gap-2 justify-end">
+                                    {record.type === 'TRANSACTION' && (
+                                      <button 
+                                        onClick={() => {
+                                          const tx = transactions.find(t => t.id === record.id);
+                                          if (tx) {
+                                            setTransactionToEdit(tx);
+                                            setIsFormOpen(true);
+                                          }
+                                        }} 
+                                        className="text-blue-400 hover:text-blue-600 text-xs px-2 py-1 border border-blue-100 rounded hover:bg-blue-50"
+                                      >
+                                        編輯
+                                      </button>
+                                    )}
+                                    <button onClick={() => {
+                                      if (record.type === 'TRANSACTION') {
+                                        removeTransaction(record.id);
+                                      } else {
+                                        const originalId = (record as any).isSourceRecord ? record.id : record.id.replace('-target', '');
+                                        removeCashFlow(originalId);
+                                      }
+                                    }} className="text-red-400 hover:text-red-600 text-xs px-2 py-1 border border-red-100 rounded hover:bg-red-50">刪除</button>
+                                  </div>
                                 )}
                              </td>
                            </tr>
@@ -1355,6 +1389,7 @@ const App: React.FC = () => {
               <AccountManager 
                 accounts={computedAccounts} 
                 onAdd={addAccount}
+                onUpdate={updateAccount}
                 onDelete={removeAccount}
               />
             )}
@@ -1364,6 +1399,7 @@ const App: React.FC = () => {
                 accounts={accounts}
                 cashFlows={cashFlows}
                 onAdd={addCashFlow}
+                onUpdate={updateCashFlow}
                 onBatchAdd={addBatchCashFlows}
                 onDelete={removeCashFlow}
                 onClearAll={handleClearAllCashFlows}
@@ -1415,8 +1451,13 @@ const App: React.FC = () => {
       {isFormOpen && (
         <TransactionForm 
           accounts={accounts} 
-          onAdd={addTransaction} 
-          onClose={() => setIsFormOpen(false)} 
+          onAdd={addTransaction}
+          onUpdate={updateTransaction}
+          editingTransaction={transactionToEdit}
+          onClose={() => {
+            setIsFormOpen(false);
+            setTransactionToEdit(null);
+          }} 
         />
       )}
       {isImportOpen && (
