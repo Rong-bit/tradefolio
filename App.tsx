@@ -16,7 +16,7 @@ import AssetAllocationSimulator from './components/AssetAllocationSimulator';
 import { fetchCurrentPrices } from './services/yahooFinanceService';
 import { ADMIN_EMAIL, SYSTEM_ACCESS_CODE, GLOBAL_AUTHORIZED_USERS } from './config';
 import { v4 as uuidv4 } from 'uuid';
-import { Language, getLanguage, setLanguage as saveLanguage, t } from './utils/i18n';
+import { Language, getLanguage, setLanguage as saveLanguage, t, translate } from './utils/i18n';
 
 type View = 'dashboard' | 'history' | 'funds' | 'accounts' | 'rebalance' | 'simulator' | 'help';
 
@@ -1185,7 +1185,7 @@ const App: React.FC = () => {
                         onChange={(e) => setFilterAccount(e.target.value)}
                         className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
                       >
-                        <option value="">{language === 'en' ? 'All Accounts' : '所有帳戶'}</option>
+                        <option value="">{t(language).funds.allAccounts}</option>
                         {accounts.map(account => (
                           <option key={account.id} value={account.id}>
                             {account.name}
@@ -1249,26 +1249,28 @@ const App: React.FC = () => {
                           {t(language).history.includeCashFlow}
                         </span>
                       </label>
-                      {language === 'zh-TW' && (
-                        <div className="text-xs text-slate-500">
-                          勾選後會顯示資金匯入、提取、轉帳等記錄，方便查看餘額變化
-                        </div>
-                      )}
+                      <div className="text-xs text-slate-500">
+                        {t(language).history.includeCashFlowDesc}
+                      </div>
                     </div>
                   </div>
                   
                   {/* 篩選結果統計 */}
                   <div className="flex items-center justify-between pt-4 border-t border-slate-200">
                     <div className="text-sm text-slate-600">
-                      顯示 <span className="font-semibold text-slate-800">{filteredRecords.length}</span> 筆記錄
+                      {translate('history.showingRecords', language, { count: filteredRecords.length })}
                       {filteredRecords.length !== combinedRecords.length && (
                         <span className="text-slate-500">
-                          （共 {combinedRecords.length} 筆：{transactions.length} 筆交易{includeCashFlow ? ` + ${cashFlows.length} 筆現金流` : ''}）
+                          {translate('history.totalRecords', language, { 
+                            total: combinedRecords.length, 
+                            transactionCount: transactions.length,
+                            hasCashFlow: includeCashFlow ? (language === 'zh-TW' ? ` + ${cashFlows.length} 筆現金流` : ` + ${cashFlows.length} cash flows`) : ''
+                          })}
                         </span>
                       )}
                       {!includeCashFlow && cashFlows.length > 0 && (
                         <span className="text-amber-600 ml-2">
-                          （已隱藏 {cashFlows.length} 筆現金流記錄）
+                          {language === 'zh-TW' ? '（' : '('}{translate('history.hiddenCashFlowRecords', language, { count: cashFlows.length })}{language === 'zh-TW' ? '）' : ')'}
                         </span>
                       )}
                     </div>
@@ -1284,7 +1286,7 @@ const App: React.FC = () => {
                         }}
                         className="px-3 py-1 text-xs bg-blue-100 text-blue-700 rounded-full hover:bg-blue-200 transition"
                       >
-                        最近30天
+                        {t(language).history.last30Days}
                       </button>
                       <button
                         onClick={() => {
@@ -1294,7 +1296,7 @@ const App: React.FC = () => {
                         }}
                         className="px-3 py-1 text-xs bg-green-100 text-green-700 rounded-full hover:bg-green-200 transition"
                       >
-                        今年
+                        {t(language).history.thisYear}
                       </button>
                     </div>
                   </div>
@@ -1304,15 +1306,15 @@ const App: React.FC = () => {
                    <table className="min-w-full text-xs sm:text-sm text-left">
                      <thead className="bg-slate-50 text-slate-500 uppercase font-medium">
                        <tr>
-                         <th className="px-2 sm:px-4 py-2 sm:py-3 whitespace-nowrap">日期</th>
-                         <th className="px-2 sm:px-4 py-2 sm:py-3 whitespace-nowrap hidden sm:table-cell">帳戶</th>
-                         <th className="px-2 sm:px-4 py-2 sm:py-3 whitespace-nowrap">標的/描述</th>
-                         <th className="px-2 sm:px-4 py-2 sm:py-3 whitespace-nowrap hidden md:table-cell">類別</th>
-                         <th className="px-2 sm:px-4 py-2 sm:py-3 text-right whitespace-nowrap hidden lg:table-cell">單價</th>
-                         <th className="px-2 sm:px-4 py-2 sm:py-3 text-right whitespace-nowrap hidden lg:table-cell">數量</th>
-                         <th className="px-2 sm:px-4 py-2 sm:py-3 text-right whitespace-nowrap">金額</th>
-                         <th className="px-2 sm:px-4 py-2 sm:py-3 text-right whitespace-nowrap hidden md:table-cell">餘額</th>
-                         <th className="px-2 sm:px-4 py-2 sm:py-3 text-center whitespace-nowrap">操作</th>
+                         <th className="px-2 sm:px-4 py-2 sm:py-3 whitespace-nowrap">{t(language).labels.date}</th>
+                         <th className="px-2 sm:px-4 py-2 sm:py-3 whitespace-nowrap hidden sm:table-cell">{t(language).labels.account}</th>
+                         <th className="px-2 sm:px-4 py-2 sm:py-3 whitespace-nowrap">{t(language).labels.description}</th>
+                         <th className="px-2 sm:px-4 py-2 sm:py-3 whitespace-nowrap hidden md:table-cell">{t(language).labels.category}</th>
+                         <th className="px-2 sm:px-4 py-2 sm:py-3 text-right whitespace-nowrap hidden lg:table-cell">{t(language).labels.price}</th>
+                         <th className="px-2 sm:px-4 py-2 sm:py-3 text-right whitespace-nowrap hidden lg:table-cell">{t(language).labels.quantity}</th>
+                         <th className="px-2 sm:px-4 py-2 sm:py-3 text-right whitespace-nowrap">{t(language).labels.amount}</th>
+                         <th className="px-2 sm:px-4 py-2 sm:py-3 text-right whitespace-nowrap hidden md:table-cell">{t(language).labels.balance}</th>
+                         <th className="px-2 sm:px-4 py-2 sm:py-3 text-center whitespace-nowrap">{t(language).labels.action}</th>
                        </tr>
                      </thead>
                      <tbody className="divide-y divide-slate-100">
@@ -1330,19 +1332,19 @@ const App: React.FC = () => {
                            else if(record.subType === TransactionType.TRANSFER_IN) badgeColor = 'bg-blue-100 text-blue-700';
                            else if(record.subType === TransactionType.TRANSFER_OUT) badgeColor = 'bg-orange-100 text-orange-700';
                          } else if (record.type === 'CASHFLOW') {
-                           if(record.subType === 'DEPOSIT') {
-                             badgeColor = 'bg-emerald-100 text-emerald-700';
-                             displayType = '資金匯入';
-                           } else if(record.subType === 'WITHDRAW') {
-                             badgeColor = 'bg-red-100 text-red-700';
-                             displayType = '資金提取';
-                           } else if(record.subType === 'TRANSFER') {
-                             badgeColor = 'bg-purple-100 text-purple-700';
-                             displayType = '帳戶轉出';
-                           } else if(record.subType === 'TRANSFER_IN') {
-                             badgeColor = 'bg-blue-100 text-blue-700';
-                             displayType = '帳戶轉入';
-                           }
+                          if(record.subType === 'DEPOSIT') {
+                            badgeColor = 'bg-emerald-100 text-emerald-700';
+                            displayType = t(language).history.cashFlowDeposit;
+                          } else if(record.subType === 'WITHDRAW') {
+                            badgeColor = 'bg-red-100 text-red-700';
+                            displayType = t(language).history.cashFlowWithdraw;
+                          } else if(record.subType === 'TRANSFER') {
+                            badgeColor = 'bg-purple-100 text-purple-700';
+                            displayType = t(language).history.cashFlowTransfer;
+                          } else if(record.subType === 'TRANSFER_IN') {
+                            badgeColor = 'bg-blue-100 text-blue-700';
+                            displayType = t(language).history.cashFlowTransferIn;
+                          }
                          }
                          
                          // 取得目標帳戶名稱（用於轉帳）
@@ -1421,7 +1423,7 @@ const App: React.FC = () => {
                                         }} 
                                         className="text-blue-400 hover:text-blue-600 text-[10px] sm:text-xs px-1.5 sm:px-2 py-0.5 sm:py-1 border border-blue-100 rounded hover:bg-blue-50 whitespace-nowrap"
                                       >
-                                        編輯
+                                        {t(language).history.edit}
                                       </button>
                                     )}
                                     <button onClick={() => {
@@ -1431,7 +1433,7 @@ const App: React.FC = () => {
                                         const originalId = (record as any).isSourceRecord ? record.id : record.id.replace('-target', '');
                                         removeCashFlow(originalId);
                                       }
-                                    }} className="text-red-400 hover:text-red-600 text-[10px] sm:text-xs px-1.5 sm:px-2 py-0.5 sm:py-1 border border-red-100 rounded hover:bg-red-50 whitespace-nowrap">刪除</button>
+                                    }} className="text-red-400 hover:text-red-600 text-[10px] sm:text-xs px-1.5 sm:px-2 py-0.5 sm:py-1 border border-red-100 rounded hover:bg-red-50 whitespace-nowrap">{t(language).history.delete}</button>
                                   </div>
                                 )}
                              </td>
@@ -1444,11 +1446,11 @@ const App: React.FC = () => {
                      <div className="p-8 text-center text-slate-400">
                         {transactions.length === 0 ? (
                            <div>
-                              <p className="text-lg font-medium text-slate-500 mb-2">尚無交易記錄</p>
+                              <p className="text-lg font-medium text-slate-500 mb-2">{t(language).history.noTransactions}</p>
                            </div>
                         ) : (
                            <div>
-                              <p className="text-lg font-medium text-slate-500 mb-2">找不到符合條件的交易</p>
+                              <p className="text-lg font-medium text-slate-500 mb-2">{t(language).history.noMatchingTransactions}</p>
                            </div>
                         )}
                      </div>
