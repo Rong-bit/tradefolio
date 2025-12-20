@@ -360,6 +360,7 @@ export interface Translations {
     confirmImportMessage: string;
     confirmImportWarning: string;
     confirmOverride: string;
+    documentationContent: string;
   };
 }
 
@@ -709,6 +710,57 @@ const zhTW: Translations = {
     confirmImportMessage: '您即將匯入 {fileName}。',
     confirmImportWarning: '這將會完全清除目前的交易紀錄與設定，且無法復原。',
     confirmOverride: '確認覆蓋',
+    documentationContent: `# TradeFolio 使用說明書
+
+> **隱私與安全聲明** :
+> 本系統採用離線優先架構，**所有交易資料皆儲存於您的個人電腦或手機瀏覽器中**，不會上傳至任何伺服器。**系統不涉及收集個人資料**，請安心使用。
+
+## 1. 系統簡介
+TradeFolio 是一個支援台股與美股的資產管理工具，協助投資人追蹤資產變化、計算報酬率並管理資金流向。
+
+## 2. 快速開始
+1. **建立帳戶**: 前往「證券戶管理」新增您的銀行或證券帳戶。
+2. **匯入資金**: 前往「資金管理」，選擇「匯入資金」將薪資或存款記錄到系統中。
+3. **新增交易**: 點擊右上角「記一筆」輸入股票買賣紀錄。
+4. **查看報表**: 回到「儀表板」查看資產折線圖與績效。
+
+## 3. 功能詳解
+
+### 資金管理 (Fund Management)
+* **匯入 (Import)**: 外部資金流入 (如薪資)。
+* **匯出 (Export)**: 資金流出 (如生活費提領)。
+* **轉帳 (Transfer)**: 不同帳戶間的資金移動 (如銀行轉證券戶)。
+* **利息**: 記錄存款或證券戶利息。
+
+### 交易類別
+* **Buy/Sell**: 一般買賣。
+* **Dividend**: 股票股息 (股數增加)。
+* **Cash Dividend**: 現金股息 (餘額增加)。
+
+## 4. 常見問題 (FAQ)
+Q: 如何計算年化報酬率？
+A: 系統採用資金加權報酬率概念，考慮資金進出的時間點進行估算。
+
+Q: 匯率如何設定？
+A: 可在右上角設定全域 USD/TWD 匯率，或在轉帳時指定當下匯率。
+
+Q: 資料儲存與隱私？
+A: 如同前述，**資料完全儲存在您個人的裝置（電腦或手機）上**，不涉及個資問題。為了避免裝置損壞或瀏覽器快取被清除導致資料遺失，**強烈建議定期使用下方的「備份資料」功能**自行保存 JSON 檔案。
+
+Q: 無法下載備份檔？
+A: 若您是在 LINE 開啟連結，系統可能會阻擋彈跳視窗導致無法正常下載。建議您在瀏覽器 (如 Chrome 或 Safari) 再進行操作。
+
+Q: 為何股價無法更新？
+A: 檢查該隻股票市場是否設定正確，若錯誤請在「交易紀錄」裡選擇「批量修改市場」，進行更換市場。
+
+Q: 會員有何優點？
+A: 界面會多出再平衡、圖表、年度績效表，讓使用者更加了解自己投資結果。
+
+Q: 會員的年度績效表為何有勾勾？
+A: 具勾勾部份是顯示該年度年底的績效表現，無勾勾部份是按你的報酬率反推的你績效表現，僅是預估效果。
+
+Q: 股價與匯率為何與按「AI聯網更新股價&匯率」得到現價為何不同？
+A: 股價與匯率因為是抓取網頁現值，故現值會慢三分鐘至五分鐘不等，所以勿拿來當買賣的參考值，建議買賣的參考仍以証券公司為主，此軟體僅適用作統計資產功能，例如有緊急預備金、旅遊基金、退休金、定存、股債券等統計參考，並無証券交易買賣功能；另外投資有賺有賠，記得預留緊急預備金，感謝您的使用。`,
   },
 };
 
@@ -1058,6 +1110,57 @@ const en: Translations = {
     confirmImportMessage: 'You are about to import {fileName}.',
     confirmImportWarning: 'This will completely clear your current transaction records and settings, and cannot be undone.',
     confirmOverride: 'Confirm Override',
+    documentationContent: `# TradeFolio User Manual
+
+> **Privacy & Security Statement**:
+> This system adopts an offline-first architecture. **All transaction data is stored on your personal computer or mobile browser** and is not uploaded to any server. **The system does not involve collecting personal information**. Please use with confidence.
+
+## 1. System Introduction
+TradeFolio is an asset management tool that supports Taiwan and US stocks, helping investors track asset changes, calculate returns, and manage fund flows.
+
+## 2. Quick Start
+1. **Create Account**: Go to "Account Management" to add your bank or brokerage account.
+2. **Import Funds**: Go to "Fund Management", select "Import Funds" to record salary or deposits into the system.
+3. **Add Transaction**: Click "Add Transaction" in the top right corner to input stock buy/sell records.
+4. **View Reports**: Return to "Dashboard" to view asset line charts and performance.
+
+## 3. Feature Details
+
+### Fund Management
+* **Import**: External fund inflow (e.g., salary).
+* **Export**: Fund outflow (e.g., living expenses withdrawal).
+* **Transfer**: Fund movement between different accounts (e.g., bank to brokerage account).
+* **Interest**: Record deposit or brokerage account interest.
+
+### Transaction Types
+* **Buy/Sell**: General buy/sell transactions.
+* **Dividend**: Stock dividend (number of shares increases).
+* **Cash Dividend**: Cash dividend (balance increases).
+
+## 4. Frequently Asked Questions (FAQ)
+Q: How is the annualized return rate calculated?
+A: The system uses the money-weighted return concept, taking into account the timing of fund inflows and outflows for estimation.
+
+Q: How to set the exchange rate?
+A: You can set the global USD/TWD exchange rate in the top right corner, or specify the current exchange rate when transferring funds.
+
+Q: Data storage and privacy?
+A: As mentioned above, **data is completely stored on your personal device (computer or mobile)** and does not involve personal information issues. To avoid data loss due to device damage or browser cache clearing, **it is strongly recommended to regularly use the "Backup Data" function below** to save JSON files yourself.
+
+Q: Cannot download backup file?
+A: If you open the link in LINE, the system may block pop-up windows, preventing normal downloads. It is recommended to use a browser (such as Chrome or Safari) for operations.
+
+Q: Why can't stock prices be updated?
+A: Check if the stock market is set correctly. If incorrect, select "Batch Update Market" in "Transaction History" to change the market.
+
+Q: What are the benefits of membership?
+A: The interface will include rebalancing, charts, and annual performance tables, allowing users to better understand their investment results.
+
+Q: Why are there checkmarks in the member's annual performance table?
+A: The parts with checkmarks show the performance at the end of that year. The parts without checkmarks are performance estimates calculated by reverse-engineering based on your return rate, which are only estimated effects.
+
+Q: Why are stock prices and exchange rates different from the current prices obtained by clicking "AI Update Prices & Exchange Rates"?
+A: Stock prices and exchange rates are scraped from web current values, so the current values may lag by three to five minutes. Therefore, do not use them as references for buying and selling. It is recommended to use securities companies as the main reference for buying and selling. This software is only suitable for statistical asset functions, such as emergency funds, travel funds, retirement funds, fixed deposits, stocks and bonds, etc. It does not have securities trading functions. Additionally, investments have profits and losses. Remember to reserve emergency funds. Thank you for using.`,
   },
 };
 
