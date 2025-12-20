@@ -272,34 +272,33 @@ const AssetAllocationSimulator: React.FC<Props> = ({ holdings = [], language }) 
 
   // 準備圖表數據
   const chartData = simulationResult?.yearlyProjections.map(yp => ({
-    年份: yp.year,
-    資產價值: Math.round(yp.value),
-    年度報酬: Math.round(yp.return),
-    累積投入: yp.cumulativeInvestment ? Math.round(yp.cumulativeInvestment) : initialAmount,
-    初始金額: initialAmount
+    [language === 'zh-TW' ? '年份' : 'Year']: yp.year,
+    [language === 'zh-TW' ? '資產價值' : 'Asset Value']: Math.round(yp.value),
+    [language === 'zh-TW' ? '年度報酬' : 'Yearly Return']: Math.round(yp.return),
+    [language === 'zh-TW' ? '累積投入' : 'Cumulative Investment']: yp.cumulativeInvestment ? Math.round(yp.cumulativeInvestment) : initialAmount,
+    [language === 'zh-TW' ? '初始金額' : 'Initial Amount']: initialAmount
   })) || [];
 
   return (
     <div className="space-y-6">
       {/* 說明區塊 */}
       <div className="bg-blue-50 border-l-4 border-blue-500 p-4 rounded-lg">
-        <h3 className="font-bold text-blue-900 mb-2">📊 資產配置模擬說明</h3>
+        <h3 className="font-bold text-blue-900 mb-2">📊 {translations.simulator.title}</h3>
         <p className="text-sm text-blue-800 mb-2">
-          此工具可讓您比較不同資產配置的預期獲利。請輸入各種股票或 ETF 的成立以來年化報酬率作為假設值，
-          系統會根據您的配置比例計算組合的預期表現。
+          {translations.simulator.description}
         </p>
         <p className="text-xs text-blue-700 mt-2">
-          ⚠️ 注意：過往績效不代表未來表現，此模擬僅供參考。
+          {translations.simulator.descriptionWarning}
         </p>
       </div>
 
       {/* 基本設定 */}
       <div className="bg-white p-6 rounded-xl shadow">
-        <h3 className="font-bold text-slate-800 text-lg mb-4">基本設定</h3>
+        <h3 className="font-bold text-slate-800 text-lg mb-4">{translations.simulator.basicSettings}</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-2">
-              初始投資金額 (TWD)
+              {translations.simulator.initialAmount} {language === 'zh-TW' ? '' : '(TWD)'}
             </label>
             <input
               type="number"
@@ -342,7 +341,7 @@ const AssetAllocationSimulator: React.FC<Props> = ({ holdings = [], language }) 
           </div>
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-2">
-              投資年數
+              {translations.simulator.investmentYears}
             </label>
             <input
               type="text"
@@ -399,11 +398,11 @@ const AssetAllocationSimulator: React.FC<Props> = ({ holdings = [], language }) 
         
         {/* 定期定額設定 */}
         <div className="mt-6 pt-6 border-t border-slate-200">
-          <h4 className="text-sm font-semibold text-slate-700 mb-4">定期定額投資（選填）</h4>
+          <h4 className="text-sm font-semibold text-slate-700 mb-4">{translations.simulator.regularInvestment}</h4>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-2">
-                定期定額金額 (TWD)
+                {translations.simulator.regularAmount} {language === 'zh-TW' ? '' : '(TWD)'}
               </label>
               <input
                 type="number"
@@ -443,11 +442,11 @@ const AssetAllocationSimulator: React.FC<Props> = ({ holdings = [], language }) 
                 step="1000"
                 placeholder="0"
               />
-              <p className="text-xs text-slate-500 mt-1">設定為 0 則不使用定期定額</p>
+              <p className="text-xs text-slate-500 mt-1">{translations.simulator.setToZero}</p>
             </div>
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-2">
-                投入頻率
+                {translations.simulator.frequency}
               </label>
               <select
                 value={regularFrequency}
@@ -455,14 +454,14 @@ const AssetAllocationSimulator: React.FC<Props> = ({ holdings = [], language }) 
                 className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 disabled={regularInvestment === 0}
               >
-                <option value="monthly">每月投入</option>
-                <option value="quarterly">每季投入</option>
-                <option value="yearly">每年投入</option>
+                <option value="monthly">{translations.simulator.monthly}</option>
+                <option value="quarterly">{translations.simulator.quarterly}</option>
+                <option value="yearly">{translations.simulator.yearly}</option>
               </select>
             </div>
             <div className="flex items-end">
               <div className="w-full p-3 bg-slate-50 rounded-lg">
-                <p className="text-xs text-slate-600 mb-1">年度總投入</p>
+                <p className="text-xs text-slate-600 mb-1">{translations.simulator.annualTotal}</p>
                 <p className="text-lg font-bold text-slate-800">
                   {regularInvestment > 0 
                     ? formatCurrency(
@@ -485,12 +484,12 @@ const AssetAllocationSimulator: React.FC<Props> = ({ holdings = [], language }) 
       {/* 從現有持倉導入 */}
       {holdings.length > 0 && (
         <div className="bg-white p-6 rounded-xl shadow">
-          <h3 className="font-bold text-slate-800 text-lg mb-4">現有持倉導入</h3>
+          <h3 className="font-bold text-slate-800 text-lg mb-4">{translations.simulator.importFromHoldings}</h3>
           <button
             onClick={importFromHoldings}
             className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 active:bg-indigo-800 active:scale-95 active:shadow-inner transition-all duration-150 text-sm font-medium shadow-md hover:shadow-lg"
           >
-            從現有持倉導入
+            {translations.simulator.importButton}
           </button>
         </div>
       )}
@@ -503,47 +502,47 @@ const AssetAllocationSimulator: React.FC<Props> = ({ holdings = [], language }) 
             onClick={() => setErrorMessage('')}
             className="mt-2 text-sm text-red-600 hover:text-red-800 active:text-red-900 active:scale-95 transition-all duration-150 underline"
           >
-            關閉
+            {translations.simulator.close}
           </button>
         </div>
       )}
 
       {/* 手動添加資產 */}
       <div className="bg-white p-6 rounded-xl shadow">
-        <h3 className="font-bold text-slate-800 text-lg mb-4">手動添加資產</h3>
+        <h3 className="font-bold text-slate-800 text-lg mb-4">{translations.simulator.manualAdd}</h3>
         <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-2">股票代號</label>
+            <label className="block text-sm font-medium text-slate-700 mb-2">{translations.simulator.ticker}</label>
             <input
               type="text"
               value={newTicker}
               onChange={(e) => setNewTicker(e.target.value)}
-              placeholder="例如: 0050"
+              placeholder={translations.simulator.tickerPlaceholder}
               className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-2">市場</label>
+            <label className="block text-sm font-medium text-slate-700 mb-2">{translations.simulator.market}</label>
             <select
               value={newMarket}
               onChange={(e) => setNewMarket(e.target.value as Market)}
               className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             >
-              <option value={Market.TW}>台股 (TW)</option>
-              <option value={Market.US}>美股 (US)</option>
-              <option value={Market.UK}>英股 (UK)</option>
-              <option value={Market.JP}>日股 (JP)</option>
+              <option value={Market.TW}>{translations.simulator.marketTW} {language === 'zh-TW' ? '' : '(TW)'}</option>
+              <option value={Market.US}>{translations.simulator.marketUS} {language === 'zh-TW' ? '' : '(US)'}</option>
+              <option value={Market.UK}>{translations.simulator.marketUK} {language === 'zh-TW' ? '' : '(UK)'}</option>
+              <option value={Market.JP}>{translations.simulator.marketJP} {language === 'zh-TW' ? '' : '(JP)'}</option>
             </select>
           </div>
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-2">
-              年化報酬率 (%)
+              {translations.simulator.annualReturn} {language === 'zh-TW' ? '' : '(%)'}
               {newTicker.trim() && (
                 <button
                   onClick={fetchReturnForTicker}
                   disabled={loadingReturn}
                   className="ml-2 px-2 py-1 text-xs bg-blue-50 text-blue-700 rounded hover:bg-blue-100 active:bg-blue-200 active:scale-95 transition-all duration-150 disabled:opacity-50 disabled:cursor-not-allowed"
-                  title="自動查詢上市以來的年化報酬率"
+                  title={translations.simulator.autoQueryTitle}
                 >
                   {loadingReturn && loadingTicker === newTicker.trim().toUpperCase() ? (
                     <span className="flex items-center gap-1">
@@ -551,10 +550,10 @@ const AssetAllocationSimulator: React.FC<Props> = ({ holdings = [], language }) 
                         <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                         <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                       </svg>
-                      查詢中
+                      {translations.simulator.querying}
                     </span>
                   ) : (
-                    '🔍 自動查詢'
+                    translations.simulator.autoQuery
                   )}
                 </button>
               )}
@@ -569,35 +568,35 @@ const AssetAllocationSimulator: React.FC<Props> = ({ holdings = [], language }) 
               max="100"
             />
             {loadingReturn && loadingTicker === newTicker.trim().toUpperCase() && (
-              <p className="text-xs text-blue-600 mt-1">正在查詢 {newTicker.trim().toUpperCase()} 的年化報酬率...</p>
+              <p className="text-xs text-blue-600 mt-1">{translate('simulator.queryingReturn', language, { ticker: newTicker.trim().toUpperCase() })}</p>
             )}
             {dataWarning && (
               <div className="mt-2 p-3 bg-yellow-50 border border-yellow-300 rounded-lg text-xs text-yellow-800">
-                <p className="font-semibold mb-1">⚠️ 數據完整性警告：</p>
+                <p className="font-semibold mb-1">{translations.simulator.dataWarning}</p>
                 <p>{dataWarning}</p>
                 <p className="mt-2 text-yellow-700">
-                  建議：如果計算結果明顯低於預期，可能是因為 Yahoo Finance 的歷史數據不完整。您可以參考官方資料或手動輸入更準確的年化報酬率。
+                  {translations.simulator.dataWarningDesc}
                 </p>
               </div>
             )}
             <div className="mt-2 p-2 bg-blue-50 border border-blue-200 rounded-lg text-xs text-blue-800">
-              <p className="font-semibold mb-1">📊 年化報酬率計算說明：</p>
+              <p className="font-semibold mb-1">{translations.simulator.cagrExplanation}</p>
               <p className="mb-1">
-                系統使用 <strong>CAGR (複合年成長率)</strong> 公式計算：
+                {translations.simulator.cagrFormulaDesc}
               </p>
               <p className="font-mono bg-white px-2 py-1 rounded mb-1 text-blue-900">
-                CAGR = ((當前價格 / 初始價格) ^ (1 / 年數)) - 1
+                {translations.simulator.cagrFormula}
               </p>
               <p className="mb-1">
-                這表示如果從<strong>上市時買入並持有至今</strong>，每年的平均複合報酬率。
+                {translations.simulator.cagrExample}
               </p>
               <p className="text-blue-700">
-                <strong>範例：</strong>股票從 100 元漲到 200 元，經過 5 年，年化報酬率約為 <strong>14.87%</strong>
+                {translations.simulator.cagrExampleValue}
               </p>
             </div>
           </div>
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-2">配置比例 (%)</label>
+            <label className="block text-sm font-medium text-slate-700 mb-2">{translations.simulator.allocation} {language === 'zh-TW' ? '' : '(%)'}</label>
             <input
               type="number"
               value={newAllocation === 0 ? '' : newAllocation}
@@ -645,7 +644,7 @@ const AssetAllocationSimulator: React.FC<Props> = ({ holdings = [], language }) 
               onClick={addAsset}
               className="w-full px-4 py-2 bg-slate-900 text-white rounded-lg hover:bg-slate-800 active:bg-slate-950 active:scale-95 active:shadow-inner transition-all duration-150 font-medium shadow-md hover:shadow-lg"
             >
-              添加
+              {translations.simulator.add}
             </button>
           </div>
         </div>
@@ -655,19 +654,19 @@ const AssetAllocationSimulator: React.FC<Props> = ({ holdings = [], language }) 
       {assets.length > 0 && (
         <div className="bg-white p-6 rounded-xl shadow">
           <div className="flex justify-between items-center mb-4">
-            <h3 className="font-bold text-slate-800 text-lg">資產配置列表</h3>
+            <h3 className="font-bold text-slate-800 text-lg">{translations.simulator.assetList}</h3>
             <div className="flex gap-2">
               <button
                 onClick={autoBalance}
                 className="px-3 py-1.5 bg-blue-50 text-blue-700 rounded-lg hover:bg-blue-100 active:bg-blue-200 active:scale-95 active:shadow-inner transition-all duration-150 text-sm font-medium border border-blue-200 hover:border-blue-300"
               >
-                自動平衡
+                {translations.simulator.autoBalance}
               </button>
               <button
                 onClick={clearAll}
                 className="px-3 py-1.5 bg-red-50 text-red-700 rounded-lg hover:bg-red-100 active:bg-red-200 active:scale-95 active:shadow-inner transition-all duration-150 text-sm font-medium border border-red-200 hover:border-red-300"
               >
-                清空全部
+                {translations.simulator.clearAll}
               </button>
             </div>
           </div>
@@ -675,11 +674,11 @@ const AssetAllocationSimulator: React.FC<Props> = ({ holdings = [], language }) 
             <table className="min-w-full text-sm">
               <thead className="bg-slate-50 text-slate-600 uppercase font-medium">
                 <tr>
-                  <th className="px-4 py-3 text-left">股票代號</th>
-                  <th className="px-4 py-3 text-left">市場</th>
-                  <th className="px-4 py-3 text-right">年化報酬率 (%)</th>
-                  <th className="px-4 py-3 text-right">配置比例 (%)</th>
-                  <th className="px-4 py-3 text-right">操作</th>
+                  <th className="px-4 py-3 text-left">{translations.simulator.ticker}</th>
+                  <th className="px-4 py-3 text-left">{translations.simulator.market}</th>
+                  <th className="px-4 py-3 text-right">{translations.simulator.annualReturn} {language === 'zh-TW' ? '' : '(%)'}</th>
+                  <th className="px-4 py-3 text-right">{translations.simulator.allocation} {language === 'zh-TW' ? '' : '(%)'}</th>
+                  <th className="px-4 py-3 text-right">{language === 'zh-TW' ? '操作' : 'Action'}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -749,7 +748,7 @@ const AssetAllocationSimulator: React.FC<Props> = ({ holdings = [], language }) 
                           onClick={() => removeAsset(asset.id)}
                           className="text-red-500 hover:text-red-700 active:text-red-900 active:scale-95 transition-all duration-150 text-sm px-2 py-1 rounded hover:bg-red-50 active:bg-red-100"
                         >
-                          刪除
+                          {language === 'zh-TW' ? '刪除' : 'Delete'}
                         </button>
                       </td>
                     </tr>
@@ -758,7 +757,7 @@ const AssetAllocationSimulator: React.FC<Props> = ({ holdings = [], language }) 
               </tbody>
               <tfoot className="bg-slate-50 font-bold">
                 <tr>
-                  <td colSpan={3} className="px-4 py-3 text-right">配置比例總和:</td>
+                  <td colSpan={3} className="px-4 py-3 text-right">{translations.simulator.allocationSum}</td>
                   <td className="px-4 py-3 text-right">
                     <span className={Math.abs(assets.reduce((sum, a) => sum + a.allocation, 0) - 100) < 0.01 ? 'text-green-600' : 'text-red-600'}>
                       {assets.reduce((sum, a) => sum + a.allocation, 0).toFixed(1)}%
@@ -779,7 +778,7 @@ const AssetAllocationSimulator: React.FC<Props> = ({ holdings = [], language }) 
           <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
             <div className="bg-white p-6 rounded-xl shadow border-l-4 border-purple-500">
               <h4 className="text-slate-500 text-xs font-bold uppercase tracking-wider">
-                {simulationResult.regularInvestment ? '總投入金額' : '初始投資'}
+                {simulationResult.regularInvestment ? translations.simulator.totalInvested : translations.simulator.initial}
               </h4>
               <p className="text-2xl font-bold text-slate-800 mt-2">
                 {formatCurrency(
@@ -791,18 +790,18 @@ const AssetAllocationSimulator: React.FC<Props> = ({ holdings = [], language }) 
               </p>
               {simulationResult.regularInvestment && (
                 <p className="text-xs text-slate-500 mt-1">
-                  初始: {formatCurrency(simulationResult.initialAmount, 'TWD')}
+                  {translations.simulator.initial}: {formatCurrency(simulationResult.initialAmount, 'TWD')}
                 </p>
               )}
             </div>
             <div className="bg-white p-6 rounded-xl shadow border-l-4 border-green-500">
-              <h4 className="text-slate-500 text-xs font-bold uppercase tracking-wider">最終價值</h4>
+              <h4 className="text-slate-500 text-xs font-bold uppercase tracking-wider">{translations.simulator.finalValue}</h4>
               <p className="text-2xl font-bold text-slate-800 mt-2">
                 {formatCurrency(simulationResult.finalValue, 'TWD')}
               </p>
             </div>
             <div className="bg-white p-6 rounded-xl shadow border-l-4 border-blue-500">
-              <h4 className="text-slate-500 text-xs font-bold uppercase tracking-wider">總報酬</h4>
+              <h4 className="text-slate-500 text-xs font-bold uppercase tracking-wider">{translations.simulator.totalReturn}</h4>
               <p className="text-2xl font-bold text-slate-800 mt-2">
                 {formatCurrency(simulationResult.totalReturn, 'TWD')}
               </p>
@@ -811,7 +810,7 @@ const AssetAllocationSimulator: React.FC<Props> = ({ holdings = [], language }) 
               </p>
             </div>
             <div className="bg-white p-6 rounded-xl shadow border-l-4 border-indigo-500">
-              <h4 className="text-slate-500 text-xs font-bold uppercase tracking-wider">組合年化報酬</h4>
+              <h4 className="text-slate-500 text-xs font-bold uppercase tracking-wider">{translations.simulator.portfolioAnnualReturn}</h4>
               <p className="text-2xl font-bold text-slate-800 mt-2">
                 {simulationResult.annualizedReturn.toFixed(2)}%
               </p>
@@ -820,12 +819,12 @@ const AssetAllocationSimulator: React.FC<Props> = ({ holdings = [], language }) 
 
           {/* 年度預測圖表 */}
           <div className="bg-white p-6 rounded-xl shadow">
-            <h3 className="font-bold text-slate-800 text-lg mb-4">年度預測趨勢圖</h3>
+            <h3 className="font-bold text-slate-800 text-lg mb-4">{translations.simulator.yearlyProjection}</h3>
             <div className="h-[400px]">
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={chartData}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-                  <XAxis dataKey="年份" stroke="#64748b" fontSize={12} />
+                  <XAxis dataKey={language === 'zh-TW' ? '年份' : 'Year'} stroke="#64748b" fontSize={12} />
                   <YAxis 
                     stroke="#64748b" 
                     fontSize={12} 
@@ -838,29 +837,29 @@ const AssetAllocationSimulator: React.FC<Props> = ({ holdings = [], language }) 
                   <Legend />
                   <Line 
                     type="monotone" 
-                    dataKey="資產價值" 
+                    dataKey={language === 'zh-TW' ? '資產價值' : 'Asset Value'} 
                     stroke="#3b82f6" 
                     strokeWidth={3} 
                     dot={{ r: 4 }} 
-                    name="資產價值"
+                    name={translations.simulator.assetValue}
                   />
                   <Line 
                     type="monotone" 
-                    dataKey="累積投入" 
+                    dataKey={language === 'zh-TW' ? '累積投入' : 'Cumulative Investment'} 
                     stroke="#10b981" 
                     strokeWidth={2} 
                     strokeDasharray="3 3" 
                     dot={false}
-                    name="累積投入"
+                    name={translations.simulator.cumulativeInvestment}
                   />
                   <Line 
                     type="monotone" 
-                    dataKey="初始金額" 
+                    dataKey={language === 'zh-TW' ? '初始金額' : 'Initial Amount'} 
                     stroke="#8b5cf6" 
                     strokeWidth={2} 
                     strokeDasharray="5 5" 
                     dot={false}
-                    name="初始投資"
+                    name={translations.simulator.initial}
                   />
                 </LineChart>
               </ResponsiveContainer>
@@ -869,12 +868,12 @@ const AssetAllocationSimulator: React.FC<Props> = ({ holdings = [], language }) 
 
           {/* 年度報酬圖表 */}
           <div className="bg-white p-6 rounded-xl shadow">
-            <h3 className="font-bold text-slate-800 text-lg mb-4">年度報酬分析</h3>
+            <h3 className="font-bold text-slate-800 text-lg mb-4">{translations.simulator.yearlyReturnAnalysis}</h3>
             <div className="h-[300px]">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={chartData}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-                  <XAxis dataKey="年份" stroke="#64748b" fontSize={12} />
+                  <XAxis dataKey={language === 'zh-TW' ? '年份' : 'Year'} stroke="#64748b" fontSize={12} />
                   <YAxis 
                     stroke="#64748b" 
                     fontSize={12} 
@@ -885,7 +884,7 @@ const AssetAllocationSimulator: React.FC<Props> = ({ holdings = [], language }) 
                     formatter={(value: number) => formatCurrency(value, 'TWD')}
                   />
                   <Legend />
-                  <Bar dataKey="年度報酬" fill="#10b981" name="年度報酬" />
+                  <Bar dataKey={language === 'zh-TW' ? '年度報酬' : 'Yearly Return'} fill="#10b981" name={translations.simulator.yearlyReturn} />
                 </BarChart>
               </ResponsiveContainer>
             </div>
@@ -894,26 +893,26 @@ const AssetAllocationSimulator: React.FC<Props> = ({ holdings = [], language }) 
           {/* 詳細年度預測表 */}
           <div className="bg-white rounded-xl shadow overflow-hidden">
             <div className="px-6 py-4 border-b border-slate-100">
-              <h3 className="font-bold text-slate-800 text-lg">詳細年度預測</h3>
+              <h3 className="font-bold text-slate-800 text-lg">{translations.simulator.detailedYearlyProjection}</h3>
             </div>
             <div className="overflow-x-auto">
               <table className="min-w-full text-sm text-left">
                 <thead className="bg-slate-50 text-slate-500 uppercase font-medium">
                   <tr>
-                    <th className="px-6 py-3">年份</th>
-                    <th className="px-6 py-3 text-right">資產價值</th>
+                    <th className="px-6 py-3">{translations.simulator.year}</th>
+                    <th className="px-6 py-3 text-right">{translations.simulator.assetValue}</th>
                     {simulationResult.regularInvestment && (
-                      <th className="px-6 py-3 text-right">年度投入</th>
+                      <th className="px-6 py-3 text-right">{language === 'zh-TW' ? '年度投入' : 'Yearly Investment'}</th>
                     )}
-                    <th className="px-6 py-3 text-right">累積投入</th>
-                    <th className="px-6 py-3 text-right">年度報酬</th>
-                    <th className="px-6 py-3 text-right">年度報酬率</th>
+                    <th className="px-6 py-3 text-right">{translations.simulator.cumulativeInvestment}</th>
+                    <th className="px-6 py-3 text-right">{translations.simulator.yearlyReturn}</th>
+                    <th className="px-6 py-3 text-right">{translations.simulator.yearlyReturnRate}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                   {simulationResult.yearlyProjections.map(yp => (
                     <tr key={yp.year} className="hover:bg-slate-50">
-                      <td className="px-6 py-3 font-bold text-slate-700">第 {yp.year} 年</td>
+                      <td className="px-6 py-3 font-bold text-slate-700">{translations.simulator.yearPrefix} {yp.year} {translations.simulator.yearSuffix}</td>
                       <td className="px-6 py-3 text-right font-medium">
                         {formatCurrency(yp.value, 'TWD')}
                       </td>
@@ -944,7 +943,7 @@ const AssetAllocationSimulator: React.FC<Props> = ({ holdings = [], language }) 
       {assets.length > 0 && simulationResult === null && (
         <div className="bg-amber-50 border-l-4 border-amber-500 p-4 rounded-lg">
           <p className="text-amber-800 font-medium">
-            ⚠️ 配置比例總和必須等於 100%，目前為 {assets.reduce((sum, a) => sum + a.allocation, 0).toFixed(1)}%
+            {translations.simulator.allocationWarning} {assets.reduce((sum, a) => sum + a.allocation, 0).toFixed(1)}%
           </p>
         </div>
       )}
@@ -953,20 +952,20 @@ const AssetAllocationSimulator: React.FC<Props> = ({ holdings = [], language }) 
       {showClearConfirm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black bg-opacity-50 animate-fade-in">
           <div className="bg-white rounded-lg shadow-xl p-6 max-w-sm">
-            <h3 className="text-lg font-bold text-slate-800 mb-2">確認清空</h3>
-            <p className="text-slate-600 mb-6">確定要清空所有資產配置嗎？此操作無法復原。</p>
+            <h3 className="text-lg font-bold text-slate-800 mb-2">{translations.simulator.confirmClear}</h3>
+            <p className="text-slate-600 mb-6">{translations.simulator.confirmClearMessage}</p>
             <div className="flex justify-end gap-3">
               <button
                 onClick={() => setShowClearConfirm(false)}
                 className="px-4 py-2 rounded border hover:bg-slate-50 active:bg-slate-100 active:scale-95 active:shadow-inner transition-all duration-150"
               >
-                取消
+                {translations.simulator.cancel}
               </button>
               <button
                 onClick={confirmClearAll}
                 className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 active:bg-red-800 active:scale-95 active:shadow-inner transition-all duration-150 shadow-md hover:shadow-lg"
               >
-                確認清空
+                {translations.simulator.confirmClear}
               </button>
             </div>
           </div>
