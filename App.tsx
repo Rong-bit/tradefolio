@@ -16,6 +16,7 @@ import AssetAllocationSimulator from './components/AssetAllocationSimulator';
 import { fetchCurrentPrices } from './services/yahooFinanceService';
 import { ADMIN_EMAIL, SYSTEM_ACCESS_CODE, GLOBAL_AUTHORIZED_USERS } from './config';
 import { v4 as uuidv4 } from 'uuid';
+import { Language, getLanguage, setLanguage as saveLanguage, t } from './utils/i18n';
 
 type View = 'dashboard' | 'history' | 'funds' | 'accounts' | 'rebalance' | 'simulator' | 'help';
 
@@ -85,6 +86,7 @@ const App: React.FC = () => {
   const [showDebugPanel, setShowDebugPanel] = useState(false);
   const [view, setView] = useState<View>('dashboard');
   const [hasAutoUpdated, setHasAutoUpdated] = useState(false);
+  const [language, setLanguage] = useState<Language>(getLanguage());
   
   // 篩選狀態
   const [filterAccount, setFilterAccount] = useState<string>('');
@@ -109,6 +111,8 @@ const App: React.FC = () => {
     const lastUser = localStorage.getItem('tf_last_user');
     const isAuth = localStorage.getItem('tf_is_auth');
     const guestStatus = localStorage.getItem('tf_is_guest');
+    const savedLang = getLanguage();
+    setLanguage(savedLang);
     
     if (isAuth === 'true' && lastUser) {
       if (guestStatus === 'true') {
@@ -122,6 +126,12 @@ const App: React.FC = () => {
       }
     }
   }, []);
+
+  // 切換語言
+  const handleLanguageChange = (lang: Language) => {
+    setLanguage(lang);
+    saveLanguage(lang);
+  };
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
@@ -850,13 +860,13 @@ const App: React.FC = () => {
               <div className="mx-auto w-16 h-16 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl flex items-center justify-center text-white text-3xl font-bold shadow-lg">
                 T
               </div>
-              <h1 className="mt-4 text-2xl font-bold text-slate-800">TradeFolio 登入</h1>
-              <p className="mt-2 text-slate-500 text-sm">台美股資產管理系統</p>
+              <h1 className="mt-4 text-2xl font-bold text-slate-800">{t(language).login.title}</h1>
+              <p className="mt-2 text-slate-500 text-sm">{t(language).login.subtitle}</p>
             </div>
 
             <form onSubmit={handleLogin} className="space-y-6">
               <div>
-                <label className="block text-sm font-medium text-slate-700">Email</label>
+                <label className="block text-sm font-medium text-slate-700">{t(language).login.email}</label>
                 <input 
                   type="email" 
                   required
@@ -868,13 +878,13 @@ const App: React.FC = () => {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-slate-700">Password</label>
+                <label className="block text-sm font-medium text-slate-700">{t(language).login.password}</label>
                 <input 
                   type="password" 
                   value={loginPassword}
                   onChange={(e) => setLoginPassword(e.target.value)}
                   className="mt-1 w-full border border-slate-300 rounded-md p-3 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors"
-                  placeholder="授權使用者無需輸入"
+                  placeholder={language === 'en' ? 'Not required for authorized users' : '授權使用者無需輸入'}
                 />
               </div>
 
@@ -882,7 +892,7 @@ const App: React.FC = () => {
                 type="submit"
                 className="w-full flex justify-center py-3 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-slate-900 hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-slate-500 transition-colors"
               >
-                登入
+                {t(language).login.login}
               </button>
             </form>
 
@@ -893,9 +903,9 @@ const App: React.FC = () => {
                         <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
                           <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
                         </svg>
-                        隱私聲明
+                        {t(language).login.privacy}
                       </span>
-                      <span>資料都在個人電腦與手機，系統不涉及個資問題，記得定時備份。</span>
+                      <span>{t(language).login.privacyDesc}</span>
                   </p>
               </div>
             </div>
@@ -910,7 +920,7 @@ const App: React.FC = () => {
                 </h3>
                 <p className="text-slate-600 mb-6 whitespace-pre-line">{alertDialog.message}</p>
                 <button onClick={closeAlert} className="bg-slate-900 text-white px-6 py-2 rounded hover:bg-slate-800">
-                  確定
+                  {t(language).common.confirm}
                 </button>
               </div>
             </div>
@@ -932,7 +942,7 @@ const App: React.FC = () => {
                </div>
                <div className="hidden md:block">
                   <h1 className="font-bold text-lg leading-none bg-clip-text text-transparent bg-gradient-to-r from-indigo-400 to-purple-400">TradeFolio</h1>
-                  <p className="text-[10px] text-slate-400 leading-none mt-0.5">台美股資產管理</p>
+                  <p className="text-[10px] text-slate-400 leading-none mt-0.5">{language === 'en' ? 'Portfolio Management' : '台美股資產管理'}</p>
                </div>
             </div>
 
@@ -948,19 +958,43 @@ const App: React.FC = () => {
                        : 'text-slate-300 hover:bg-slate-800 hover:text-white'
                    }`}
                  >
-                   {tab === 'dashboard' && '儀表板'}
-                   {tab === 'history' && '交易紀錄'}
-                   {tab === 'funds' && '資金管理'}
-                   {tab === 'accounts' && '證券戶'}
-                   {tab === 'rebalance' && '再平衡'}
-                   {tab === 'simulator' && '配置模擬'}
-                   {tab === 'help' && '系統管理'}
+                   {tab === 'dashboard' && t(language).nav.dashboard}
+                   {tab === 'history' && t(language).nav.history}
+                   {tab === 'funds' && t(language).nav.funds}
+                   {tab === 'accounts' && t(language).nav.accounts}
+                   {tab === 'rebalance' && t(language).nav.rebalance}
+                   {tab === 'simulator' && t(language).nav.simulator}
+                   {tab === 'help' && t(language).nav.help}
                  </button>
                ))}
             </nav>
 
             {/* Right Controls */}
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2 sm:gap-3">
+               {/* Language Selector */}
+               <div className="hidden sm:flex items-center bg-slate-800 rounded-md border border-slate-700 overflow-hidden">
+                 <button
+                   onClick={() => handleLanguageChange('zh-TW')}
+                   className={`px-2.5 py-1 text-xs font-medium transition-colors ${
+                     language === 'zh-TW' 
+                       ? 'bg-indigo-600 text-white' 
+                       : 'text-slate-300 hover:text-white hover:bg-slate-700'
+                   }`}
+                 >
+                   繁
+                 </button>
+                 <button
+                   onClick={() => handleLanguageChange('en')}
+                   className={`px-2.5 py-1 text-xs font-medium transition-colors border-l border-slate-700 ${
+                     language === 'en' 
+                       ? 'bg-indigo-600 text-white' 
+                       : 'text-slate-300 hover:text-white hover:bg-slate-700'
+                   }`}
+                 >
+                   EN
+                 </button>
+               </div>
+
                {/* Guest Upgrade Button */}
                {isGuest && (
                  <button
@@ -971,7 +1005,7 @@ const App: React.FC = () => {
                      <path d="M2.003 5.884L10 9.882l7.997-3.998A2 2 0 0016 4H4a2 2 0 00-1.997 1.884z" />
                      <path d="M18 8.118l-8 4-8-4V14a2 2 0 002 2h12a2 2 0 002-2V8.118z" />
                    </svg>
-                   <span>申請開通</span>
+                   <span>{language === 'en' ? 'Upgrade' : '申請開通'}</span>
                  </button>
                )}
 
@@ -997,7 +1031,7 @@ const App: React.FC = () => {
                   <button 
                     onClick={handleLogout} 
                     className="p-2 text-slate-400 hover:text-white rounded-full hover:bg-slate-800 transition-colors"
-                    title="登出"
+                    title={t(language).nav.logout}
                   >
                     <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
@@ -1009,7 +1043,30 @@ const App: React.FC = () => {
 
           {/* Mobile Navigation (Horizontal Scroll) */}
           <div className="md:hidden border-t border-slate-800 py-2 overflow-x-auto no-scrollbar">
-             <div className="flex space-x-2 px-1">
+             <div className="flex space-x-2 px-1 items-center">
+                {/* Mobile Language Selector */}
+                <div className="flex items-center bg-slate-800 rounded-full border border-slate-700 overflow-hidden shrink-0 ml-1">
+                  <button
+                    onClick={() => handleLanguageChange('zh-TW')}
+                    className={`px-2.5 py-1 text-[10px] font-medium transition-colors ${
+                      language === 'zh-TW' 
+                        ? 'bg-indigo-600 text-white' 
+                        : 'text-slate-300 hover:text-white'
+                    }`}
+                  >
+                    繁
+                  </button>
+                  <button
+                    onClick={() => handleLanguageChange('en')}
+                    className={`px-2.5 py-1 text-[10px] font-medium transition-colors border-l border-slate-700 ${
+                      language === 'en' 
+                        ? 'bg-indigo-600 text-white' 
+                        : 'text-slate-300 hover:text-white'
+                    }`}
+                  >
+                    EN
+                  </button>
+                </div>
                 {availableViews.map((tab) => (
                  <button
                    key={tab}
@@ -1020,13 +1077,13 @@ const App: React.FC = () => {
                        : 'bg-slate-800 text-slate-300'
                    }`}
                  >
-                   {tab === 'dashboard' && '儀表板'}
-                   {tab === 'history' && '交易紀錄'}
-                   {tab === 'funds' && '資金'}
-                   {tab === 'accounts' && '證券戶'}
-                   {tab === 'rebalance' && '再平衡'}
-                   {tab === 'simulator' && '模擬'}
-                   {tab === 'help' && '系統'}
+                   {tab === 'dashboard' && t(language).nav.dashboard}
+                   {tab === 'history' && t(language).nav.history}
+                   {tab === 'funds' && (language === 'en' ? 'Funds' : '資金')}
+                   {tab === 'accounts' && (language === 'en' ? 'Accounts' : '證券戶')}
+                   {tab === 'rebalance' && t(language).nav.rebalance}
+                   {tab === 'simulator' && (language === 'en' ? 'Sim' : '模擬')}
+                   {tab === 'help' && t(language).nav.help}
                  </button>
               ))}
              </div>
@@ -1038,15 +1095,15 @@ const App: React.FC = () => {
       <main className="flex-1 max-w-7xl mx-auto w-full p-4 md:p-8">
          {/* Page Title */}
          <div className="mb-6">
-            <h2 className="text-2xl font-bold text-slate-800 border-l-4 border-indigo-500 pl-3 flex justify-between items-center">
-                <span>
-                  {view === 'dashboard' && '投資組合儀表板 (Dashboard)'}
-                  {view === 'history' && '歷史記錄（交易 + 資金流動）'}
-                  {view === 'funds' && '資金存取與管理 (Funds)'}
-                  {view === 'accounts' && '證券帳戶管理 (Accounts)'}
-                  {view === 'rebalance' && '投資組合再平衡 (Rebalance)'}
-                  {view === 'simulator' && '資產配置模擬 (Allocation Simulator)'}
-                  {view === 'help' && '系統管理與備份 (System)'}
+            <h2 className="text-lg sm:text-xl md:text-2xl font-bold text-slate-800 border-l-4 border-indigo-500 pl-2 sm:pl-3 flex justify-between items-center">
+                <span className="break-words">
+                  {view === 'dashboard' && t(language).pages.dashboard}
+                  {view === 'history' && t(language).pages.history}
+                  {view === 'funds' && t(language).pages.funds}
+                  {view === 'accounts' && t(language).pages.accounts}
+                  {view === 'rebalance' && t(language).pages.rebalance}
+                  {view === 'simulator' && t(language).pages.simulator}
+                  {view === 'help' && t(language).pages.help}
                 </span>
                 {/* Mobile specific Guest Button */}
                 {isGuest && (
@@ -1054,7 +1111,7 @@ const App: React.FC = () => {
                      onClick={handleContactAdmin}
                      className="sm:hidden px-3 py-1 bg-amber-500 text-white text-xs font-bold rounded-full shadow"
                    >
-                     申請開通
+                     {language === 'en' ? 'Upgrade' : '申請開通'}
                    </button>
                 )}
             </h2>
@@ -1081,36 +1138,38 @@ const App: React.FC = () => {
 
             {view === 'history' && (
               <div className="space-y-6">
-                <div className="flex justify-between items-center bg-white p-4 rounded-lg shadow-sm border border-slate-100">
-                  <h3 className="text-lg font-bold text-slate-700">操作選項</h3>
-                  <div className="flex gap-2">
-                     <button onClick={() => setIsBatchUpdateMarketOpen(true)} className="bg-purple-600 text-white px-3 py-1.5 rounded text-sm hover:bg-purple-700 shadow-lg shadow-purple-600/20">
-                        批量修改市場
-                     </button>
-                     <button onClick={handleClearAllTransactions} className="bg-red-50 text-red-600 px-3 py-1.5 rounded text-sm hover:bg-red-100 border border-red-200">
-                        清空所有交易
-                     </button>
-                     <button onClick={() => setIsImportOpen(true)} className="bg-indigo-50 text-indigo-600 px-3 py-1.5 rounded text-sm hover:bg-indigo-100 border border-indigo-200">
-                        批次匯入
-                     </button>
-                     <button onClick={() => {
-                       setTransactionToEdit(null);
-                       setIsFormOpen(true);
-                     }} className="bg-slate-900 text-white px-4 py-2 rounded text-sm hover:bg-slate-800 shadow-lg shadow-slate-900/20">
-                        + 記一筆
-                     </button>
+                <div className="bg-white p-4 rounded-lg shadow-sm border border-slate-100">
+                  <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
+                    <h3 className="text-base sm:text-lg font-bold text-slate-700">{t(language).history.operations}</h3>
+                    <div className="flex flex-wrap gap-2">
+                       <button onClick={() => setIsBatchUpdateMarketOpen(true)} className="bg-purple-600 text-white px-3 py-1.5 rounded text-xs sm:text-sm hover:bg-purple-700 shadow-lg shadow-purple-600/20 whitespace-nowrap">
+                          {t(language).history.batchUpdateMarket}
+                       </button>
+                       <button onClick={handleClearAllTransactions} className="bg-red-50 text-red-600 px-3 py-1.5 rounded text-xs sm:text-sm hover:bg-red-100 border border-red-200 whitespace-nowrap">
+                          {t(language).history.clearAll}
+                       </button>
+                       <button onClick={() => setIsImportOpen(true)} className="bg-indigo-50 text-indigo-600 px-3 py-1.5 rounded text-xs sm:text-sm hover:bg-indigo-100 border border-indigo-200 whitespace-nowrap">
+                          {t(language).history.batchImport}
+                       </button>
+                       <button onClick={() => {
+                         setTransactionToEdit(null);
+                         setIsFormOpen(true);
+                       }} className="bg-slate-900 text-white px-4 py-2 rounded text-xs sm:text-sm hover:bg-slate-800 shadow-lg shadow-slate-900/20 whitespace-nowrap">
+                          {t(language).history.addRecord}
+                       </button>
+                    </div>
                   </div>
                 </div>
                 
                 {/* 篩選器區域 */}
                 <div className="bg-white rounded-lg shadow p-6 space-y-4">
                   <div className="flex items-center justify-between">
-                    <h3 className="text-lg font-semibold text-slate-800">查詢/篩選</h3>
+                    <h3 className="text-lg font-semibold text-slate-800">{t(language).history.filter}</h3>
                     <button 
                       onClick={clearFilters}
                       className="text-sm text-slate-500 hover:text-slate-700 underline"
                     >
-                      清除所有篩選
+                      {t(language).history.clearFilters}
                     </button>
                   </div>
                   
@@ -1118,14 +1177,14 @@ const App: React.FC = () => {
                     {/* 帳戶篩選 */}
                     <div>
                       <label className="block text-sm font-medium text-slate-700 mb-2">
-                        帳戶篩選 (Filter by Account)
+                        {t(language).history.accountFilter}
                       </label>
                       <select
                         value={filterAccount}
                         onChange={(e) => setFilterAccount(e.target.value)}
                         className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
                       >
-                        <option value="">所有帳戶</option>
+                        <option value="">{language === 'en' ? 'All Accounts' : '所有帳戶'}</option>
                         {accounts.map(account => (
                           <option key={account.id} value={account.id}>
                             {account.name}
@@ -1137,13 +1196,13 @@ const App: React.FC = () => {
                     {/* 股票代號篩選 */}
                     <div>
                       <label className="block text-sm font-medium text-slate-700 mb-2">
-                        股票代號篩選 (以股票代號篩選)
+                        {t(language).history.tickerFilter}
                       </label>
                       <input
                         type="text"
                         value={filterTicker}
                         onChange={(e) => setFilterTicker(e.target.value)}
-                        placeholder="例如: 0050, AAPL"
+                        placeholder={language === 'en' ? 'e.g., 0050, AAPL' : '例如: 0050, AAPL'}
                         className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
                       />
                     </div>
@@ -1151,7 +1210,7 @@ const App: React.FC = () => {
                     {/* 開始日期 */}
                     <div>
                       <label className="block text-sm font-medium text-slate-700 mb-2">
-                        開始日期 (依日期篩選)
+                        {t(language).history.dateFrom}
                       </label>
                       <input
                         type="date"
@@ -1164,7 +1223,7 @@ const App: React.FC = () => {
                     {/* 結束日期 */}
                     <div>
                       <label className="block text-sm font-medium text-slate-700 mb-2">
-                        結束日期
+                        {t(language).history.dateTo}
                       </label>
                       <input
                         type="date"
@@ -1186,12 +1245,14 @@ const App: React.FC = () => {
                           className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 focus:ring-2"
                         />
                         <span className="ml-2 text-sm font-medium text-slate-700">
-                          包含現金流記錄 (資金管理)
+                          {t(language).history.includeCashFlow}
                         </span>
                       </label>
-                      <div className="text-xs text-slate-500">
-                        勾選後會顯示資金匯入、提取、轉帳等記錄，方便查看餘額變化
-                      </div>
+                      {language === 'zh-TW' && (
+                        <div className="text-xs text-slate-500">
+                          勾選後會顯示資金匯入、提取、轉帳等記錄，方便查看餘額變化
+                        </div>
+                      )}
                     </div>
                   </div>
                   
@@ -1239,18 +1300,18 @@ const App: React.FC = () => {
                 </div>
 
                 <div className="bg-white rounded-lg shadow overflow-x-auto">
-                   <table className="min-w-full text-sm text-left">
+                   <table className="min-w-full text-xs sm:text-sm text-left">
                      <thead className="bg-slate-50 text-slate-500 uppercase font-medium">
                        <tr>
-                         <th className="px-4 py-3">日期</th>
-                         <th className="px-4 py-3">帳戶</th>
-                         <th className="px-4 py-3">標的/描述</th>
-                         <th className="px-4 py-3">類別</th>
-                         <th className="px-4 py-3 text-right">單價</th>
-                         <th className="px-4 py-3 text-right">數量</th>
-                         <th className="px-4 py-3 text-right">金額</th>
-                         <th className="px-4 py-3 text-right">餘額</th>
-                         <th className="px-4 py-3 text-center">操作</th>
+                         <th className="px-2 sm:px-4 py-2 sm:py-3 whitespace-nowrap">日期</th>
+                         <th className="px-2 sm:px-4 py-2 sm:py-3 whitespace-nowrap hidden sm:table-cell">帳戶</th>
+                         <th className="px-2 sm:px-4 py-2 sm:py-3 whitespace-nowrap">標的/描述</th>
+                         <th className="px-2 sm:px-4 py-2 sm:py-3 whitespace-nowrap hidden md:table-cell">類別</th>
+                         <th className="px-2 sm:px-4 py-2 sm:py-3 text-right whitespace-nowrap hidden lg:table-cell">單價</th>
+                         <th className="px-2 sm:px-4 py-2 sm:py-3 text-right whitespace-nowrap hidden lg:table-cell">數量</th>
+                         <th className="px-2 sm:px-4 py-2 sm:py-3 text-right whitespace-nowrap">金額</th>
+                         <th className="px-2 sm:px-4 py-2 sm:py-3 text-right whitespace-nowrap hidden md:table-cell">餘額</th>
+                         <th className="px-2 sm:px-4 py-2 sm:py-3 text-center whitespace-nowrap">操作</th>
                        </tr>
                      </thead>
                      <tbody className="divide-y divide-slate-100">
@@ -1295,49 +1356,59 @@ const App: React.FC = () => {
 
                          return (
                            <tr key={`${record.type}-${record.id}`} className="hover:bg-slate-50">
-                             <td className="px-4 py-3 whitespace-nowrap text-slate-600">{record.date}</td>
-                             <td className="px-4 py-3 text-slate-500 text-xs">{accName}</td>
-                             <td className="px-4 py-3 font-semibold text-slate-700">
+                             <td className="px-2 sm:px-4 py-2 sm:py-3 whitespace-nowrap text-slate-600 text-xs sm:text-sm">{record.date}</td>
+                             <td className="px-2 sm:px-4 py-2 sm:py-3 text-slate-500 text-[10px] sm:text-xs hidden sm:table-cell">{accName}</td>
+                             <td className="px-2 sm:px-4 py-2 sm:py-3 font-semibold text-slate-700 text-xs sm:text-sm">
                                 {record.type === 'TRANSACTION' ? (
-                                  <><span className="text-xs text-slate-400 mr-1">{record.market}</span>{record.ticker}</>
+                                  <div className="flex flex-col">
+                                    <span><span className="text-[10px] sm:text-xs text-slate-400 mr-1">{record.market}</span>{record.ticker}</span>
+                                    {!accName || <span className="text-[10px] text-slate-400 sm:hidden">{accName}</span>}
+                                  </div>
                                 ) : (
-                                  <span className="text-slate-600">
-                                    {record.description}
-                                    {targetAccName && record.subType === 'TRANSFER' && <span className="text-xs text-slate-400 ml-1">→ {targetAccName}</span>}
-                                    {targetAccName && record.subType === 'TRANSFER_IN' && <span className="text-xs text-slate-400 ml-1">← {targetAccName}</span>}
-                                  </span>
+                                  <div className="flex flex-col">
+                                    <span className="text-slate-600">{record.description}</span>
+                                    {targetAccName && record.subType === 'TRANSFER' && <span className="text-[10px] text-slate-400">→ {targetAccName}</span>}
+                                    {targetAccName && record.subType === 'TRANSFER_IN' && <span className="text-[10px] text-slate-400">← {targetAccName}</span>}
+                                  </div>
                                 )}
                              </td>
-                             <td className="px-4 py-3">
+                             <td className="px-2 sm:px-4 py-2 sm:py-3 hidden md:table-cell">
                                <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${badgeColor}`}>
                                  {displayType}
                                </span>
                              </td>
-                             <td className="px-4 py-3 text-right font-mono text-slate-600">
+                             <td className="px-2 sm:px-4 py-2 sm:py-3 text-right font-mono text-slate-600 text-xs hidden lg:table-cell">
                                {record.type === 'TRANSACTION' ? formatNumber(record.price) : 
                                 record.type === 'CASHFLOW' && record.exchangeRate ? record.exchangeRate : '-'}
                              </td>
-                             <td className="px-4 py-3 text-right font-mono text-slate-600">
+                             <td className="px-2 sm:px-4 py-2 sm:py-3 text-right font-mono text-slate-600 text-xs hidden lg:table-cell">
                                {record.type === 'TRANSACTION' ? formatNumber(record.quantity) : '-'}
                              </td>
-                             <td className="px-4 py-3 text-right font-bold font-mono text-slate-700">
+                             <td className="px-2 sm:px-4 py-2 sm:py-3 text-right font-bold font-mono text-slate-700 text-xs sm:text-sm">
                                {record.amount % 1 === 0 ? record.amount.toString() : record.amount.toFixed(2)}
+                               <div className="md:hidden mt-0.5">
+                                 <span className={`text-[10px] font-normal ${
+                                   (record as any).balance >= 0 ? 'text-green-600' : 'text-red-600'
+                                 }`}>
+                                   {(record as any).balance?.toFixed(2) || '0.00'}
+                                 </span>
+                               </div>
                              </td>
-                             <td className="px-4 py-3 text-right">
+                             <td className="px-2 sm:px-4 py-2 sm:py-3 text-right hidden md:table-cell">
                                 <div className="flex flex-col items-end">
-                                  <span className={`font-medium ${
+                                  <span className={`font-medium text-xs sm:text-sm ${
                                     (record as any).balance >= 0 ? 'text-green-600' : 'text-red-600'
                                   }`}>
                                     {(record as any).balance?.toFixed(2) || '0.00'}
                                   </span>
-                                  <span className="text-xs text-slate-400">
+                                  <span className="text-[10px] text-slate-400">
                                     {accounts.find(a => a.id === record.accountId)?.currency || 'TWD'}
                                   </span>
                                 </div>
                              </td>
-                             <td className="px-4 py-3 text-right">
+                             <td className="px-2 sm:px-4 py-2 sm:py-3 text-right">
                                 {!(record.type === 'CASHFLOW' && (record as any).isTargetRecord) && (
-                                  <div className="flex gap-2 justify-end items-center">
+                                  <div className="flex flex-col sm:flex-row gap-1 sm:gap-2 justify-end items-end sm:items-center">
                                     {record.type === 'TRANSACTION' && (
                                       <button 
                                         onClick={() => {
@@ -1347,7 +1418,7 @@ const App: React.FC = () => {
                                             setIsFormOpen(true);
                                           }
                                         }} 
-                                        className="text-blue-400 hover:text-blue-600 text-xs px-2 py-1 border border-blue-100 rounded hover:bg-blue-50"
+                                        className="text-blue-400 hover:text-blue-600 text-[10px] sm:text-xs px-1.5 sm:px-2 py-0.5 sm:py-1 border border-blue-100 rounded hover:bg-blue-50 whitespace-nowrap"
                                       >
                                         編輯
                                       </button>
@@ -1359,7 +1430,7 @@ const App: React.FC = () => {
                                         const originalId = (record as any).isSourceRecord ? record.id : record.id.replace('-target', '');
                                         removeCashFlow(originalId);
                                       }
-                                    }} className="text-red-400 hover:text-red-600 text-xs px-2 py-1 border border-red-100 rounded hover:bg-red-50">刪除</button>
+                                    }} className="text-red-400 hover:text-red-600 text-[10px] sm:text-xs px-1.5 sm:px-2 py-0.5 sm:py-1 border border-red-100 rounded hover:bg-red-50 whitespace-nowrap">刪除</button>
                                   </div>
                                 )}
                              </td>
@@ -1405,6 +1476,7 @@ const App: React.FC = () => {
                 onClearAll={handleClearAllCashFlows}
                 currentExchangeRate={exchangeRate}
                 currentJpyExchangeRate={jpyExchangeRate}
+                language={language}
               />
             )}
 

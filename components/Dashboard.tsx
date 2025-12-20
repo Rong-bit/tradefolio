@@ -106,49 +106,49 @@ const Dashboard: React.FC<Props> = ({
   return (
     <div className="space-y-6">
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        <div className="bg-white p-6 rounded-xl shadow border-l-4 border-purple-500 relative">
-          <h4 className="text-slate-500 text-xs font-bold uppercase tracking-wider flex justify-between items-center">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
+        <div className="bg-white p-4 sm:p-6 rounded-xl shadow border-l-4 border-purple-500 relative">
+          <h4 className="text-slate-500 text-[10px] sm:text-xs font-bold uppercase tracking-wider flex justify-between items-center">
             淨投入成本 (Net Cost)
             <button 
               onClick={() => setShowCostDetailModal(true)}
-              className="text-indigo-600 hover:text-indigo-800 text-xs bg-indigo-50 px-2 py-0.5 rounded border border-indigo-100"
+              className="text-indigo-600 hover:text-indigo-800 text-[10px] sm:text-xs bg-indigo-50 px-2 py-0.5 rounded border border-indigo-100"
               title="查看計算明細"
             >
               🔍 明細
             </button>
           </h4>
-          <p className="text-2xl font-bold text-slate-800 mt-2">
+          <p className="text-xl sm:text-2xl font-bold text-slate-800 mt-2">
             {formatCurrency(summary.netInvestedTWD, 'TWD')}
           </p>
         </div>
-        <div className="bg-white p-6 rounded-xl shadow border-l-4 border-green-500">
-          <h4 className="text-slate-500 text-xs font-bold uppercase tracking-wider">目前總資產 (Assets)</h4>
-          <p className="text-2xl font-bold text-slate-800 mt-2">
+        <div className="bg-white p-4 sm:p-6 rounded-xl shadow border-l-4 border-green-500">
+          <h4 className="text-slate-500 text-[10px] sm:text-xs font-bold uppercase tracking-wider">目前總資產 (Assets)</h4>
+          <p className="text-xl sm:text-2xl font-bold text-slate-800 mt-2">
             {formatCurrency(summary.totalValueTWD + summary.cashBalanceTWD, 'TWD')}
           </p>
           <div className="flex justify-between items-end mt-1">
-             <p className="text-xs text-slate-400">含現金: {formatCurrency(summary.cashBalanceTWD, 'TWD')}</p>
+             <p className="text-[10px] sm:text-xs text-slate-400">含現金: {formatCurrency(summary.cashBalanceTWD, 'TWD')}</p>
     
           </div>
         </div>
-        <div className={`bg-white p-6 rounded-xl shadow border-l-4 ${summary.totalPLTWD >= 0 ? 'border-success' : 'border-danger'}`}>
-          <h4 className="text-slate-500 text-xs font-bold uppercase tracking-wider">總損益 (Total P/L)</h4>
+        <div className={`bg-white p-4 sm:p-6 rounded-xl shadow border-l-4 ${summary.totalPLTWD >= 0 ? 'border-success' : 'border-danger'}`}>
+          <h4 className="text-slate-500 text-[10px] sm:text-xs font-bold uppercase tracking-wider">總損益 (Total P/L)</h4>
           <div className="flex items-baseline gap-2 mt-2">
-            <p className={`text-2xl font-bold ${summary.totalPLTWD >= 0 ? 'text-success' : 'text-danger'}`}>
+            <p className={`text-xl sm:text-2xl font-bold ${summary.totalPLTWD >= 0 ? 'text-success' : 'text-danger'}`}>
                {summary.totalPLTWD >= 0 ? '+' : ''}{formatCurrency(summary.totalPLTWD, 'TWD')}
             </p>
           </div>
-          <p className={`text-xs font-bold mt-1 ${summary.totalPLTWD >= 0 ? 'text-success' : 'text-danger'}`}>
+          <p className={`text-[10px] sm:text-xs font-bold mt-1 ${summary.totalPLTWD >= 0 ? 'text-success' : 'text-danger'}`}>
              {summary.totalPLPercent.toFixed(2)}%
           </p>
         </div>
-         <div className="bg-white p-6 rounded-xl shadow border-l-4 border-blue-500">
-          <h4 className="text-slate-500 text-xs font-bold uppercase tracking-wider">真實年化 (CAGR)</h4>
-          <p className="text-2xl font-bold text-slate-800 mt-2">
+         <div className="bg-white p-4 sm:p-6 rounded-xl shadow border-l-4 border-blue-500">
+          <h4 className="text-slate-500 text-[10px] sm:text-xs font-bold uppercase tracking-wider">真實年化 (CAGR)</h4>
+          <p className="text-xl sm:text-2xl font-bold text-slate-800 mt-2">
             {summary.annualizedReturn.toFixed(1)}%
           </p>
-          <p className="text-xs text-slate-400 mt-1">預估 8% 成長: {formatCurrency(summary.netInvestedTWD * 1.08, 'TWD')}</p>
+          <p className="text-[10px] sm:text-xs text-slate-400 mt-1">預估 8% 成長: {formatCurrency(summary.netInvestedTWD * 1.08, 'TWD')}</p>
         </div>
       </div>
 
@@ -228,19 +228,23 @@ const Dashboard: React.FC<Props> = ({
               )}
           </div>
           
-          <div className="w-full overflow-x-auto">
-            <div className="min-w-[800px] h-[450px]">
+          <div className="w-full">
+            <div className="w-full h-[300px] md:h-[450px]">
               {isMounted && chartData.length > 0 ? (
-                <ResponsiveContainer width="100%" height={400}>
-                  <ComposedChart data={chartData} margin={{ top: 20, right: 20, left: 20, bottom: 20 }}>
+                <ResponsiveContainer width="100%" height="100%">
+                  <ComposedChart data={chartData} margin={{ top: 10, right: 10, left: 10, bottom: 40 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
                     <XAxis 
                       dataKey="year" 
                       stroke="#64748b" 
-                      fontSize={12} 
-                      padding={{ left: 20, right: 20 }}
+                      fontSize={10}
+                      className="text-xs"
+                      padding={{ left: 10, right: 10 }}
+                      angle={-45}
+                      textAnchor="end"
+                      height={60}
                     />
-                    <YAxis yAxisId="left" stroke="#64748b" fontSize={12} tickFormatter={(val) => `${val / 1000}k`} />
+                    <YAxis yAxisId="left" stroke="#64748b" fontSize={10} className="text-xs" tickFormatter={(val) => `${val / 1000}k`} />
                     <Tooltip 
                       contentStyle={{ backgroundColor: '#fff', borderRadius: '8px', border: '1px solid #e2e8f0' }}
                       formatter={(value: number, name: string, props: any) => {
@@ -293,21 +297,13 @@ const Dashboard: React.FC<Props> = ({
         <div className="bg-white p-6 rounded-xl shadow overflow-hidden">
           <h3 className="font-bold text-slate-800 text-lg mb-4">資產配置 (Allocation)</h3>
           <div 
-            className="w-full flex justify-center overflow-x-auto" 
+            className="w-full flex justify-center" 
           >
-            <div style={{ 
-              width: '500px', 
-              height: '500px', 
-              minWidth: '500px',
-              minHeight: '500px'
-            }}>
+            <div className="w-full max-w-md md:max-w-lg aspect-square">
               {isMounted && assetAllocation.length > 0 ? (
                  <ResponsiveContainer 
-                   width={500} 
-                   height={500} 
-                   minWidth={500} 
-                   minHeight={500}
-                   aspect={undefined}
+                   width="100%" 
+                   height="100%"
                  >
                    <PieChart>
                       <Pie
@@ -330,6 +326,7 @@ const Dashboard: React.FC<Props> = ({
                          layout="vertical" 
                          verticalAlign="middle" 
                          align="right"
+                         wrapperStyle={{ fontSize: '10px', paddingLeft: '10px' }}
                          formatter={(value, entry: any) => {
                            const item = assetAllocation.find(a => a.name === value);
                            return <span className="text-xs text-slate-600 ml-1">{value} ({item?.ratio.toFixed(1)}%)</span>;
