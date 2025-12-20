@@ -1,15 +1,19 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Market, Transaction, TransactionType, Account } from '../types';
 import { v4 as uuidv4 } from 'uuid';
 
 interface Props {
   accounts: Account[];
   onAdd: (tx: Transaction) => void;
+  onUpdate?: (tx: Transaction) => void;
   onClose: () => void;
+  editingTransaction?: Transaction | null;
 }
 
-const TransactionForm: React.FC<Props> = ({ accounts, onAdd, onClose }) => {
+const TransactionForm: React.FC<Props> = ({ accounts, onAdd, onUpdate, onClose, editingTransaction }) => {
+  const isEditing = !!editingTransaction;
+  
   const [formData, setFormData] = useState({
     date: new Date().toISOString().split('T')[0],
     ticker: '',
@@ -21,6 +25,36 @@ const TransactionForm: React.FC<Props> = ({ accounts, onAdd, onClose }) => {
     accountId: accounts[0]?.id || '',
     note: ''
   });
+
+  // 當進入編輯模式時，載入現有交易資料
+  useEffect(() => {
+    if (editingTransaction) {
+      setFormData({
+        date: editingTransaction.date,
+        ticker: editingTransaction.ticker,
+        market: editingTransaction.market,
+        type: editingTransaction.type,
+        price: editingTransaction.price.toString(),
+        quantity: editingTransaction.quantity.toString(),
+        fees: editingTransaction.fees.toString(),
+        accountId: editingTransaction.accountId,
+        note: editingTransaction.note || ''
+      });
+    } else {
+      // 重置為預設值
+      setFormData({
+        date: new Date().toISOString().split('T')[0],
+        ticker: '',
+        market: Market.TW,
+        type: TransactionType.BUY,
+        price: '',
+        quantity: '',
+        fees: '0',
+        accountId: accounts[0]?.id || '',
+        note: ''
+      });
+    }
+  }, [editingTransaction, accounts]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -57,7 +91,7 @@ const TransactionForm: React.FC<Props> = ({ accounts, onAdd, onClose }) => {
     }
 
     const newTx: Transaction = {
-      id: uuidv4(),
+      id: isEditing && editingTransaction ? editingTransaction.id : uuidv4(),
       date: formData.date,
       ticker: formData.ticker.toUpperCase(),
       market: formData.market,
@@ -69,7 +103,12 @@ const TransactionForm: React.FC<Props> = ({ accounts, onAdd, onClose }) => {
       note: formData.note,
       amount: finalAmount // 儲存計算後的總金額
     };
-    onAdd(newTx);
+    
+    if (isEditing && onUpdate) {
+      onUpdate(newTx);
+    } else {
+      onAdd(newTx);
+    }
     onClose();
   };
 
@@ -81,7 +120,7 @@ const TransactionForm: React.FC<Props> = ({ accounts, onAdd, onClose }) => {
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50 animate-fade-in">
       <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg overflow-hidden">
         <div className="bg-slate-900 p-4 flex justify-between items-center">
-          <h2 className="text-white font-bold text-lg">新增交易</h2>
+          <h2 className="text-white font-bold text-lg">{isEditing ? '編輯交易' : '新增交易'}</h2>
           <button onClick={onClose} className="text-slate-400 hover:text-white">&times;</button>
         </div>
         
@@ -206,7 +245,7 @@ const TransactionForm: React.FC<Props> = ({ accounts, onAdd, onClose }) => {
               type="submit"
               className="flex-1 px-4 py-2 bg-slate-900 text-white rounded-md hover:bg-slate-800"
             >
-              儲存交易
+              {isEditing ? '更新交易' : '儲存交易'}
             </button>
           </div>
         </form>
