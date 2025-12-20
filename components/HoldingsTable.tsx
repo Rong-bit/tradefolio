@@ -185,14 +185,14 @@ const HoldingsTable: React.FC<Props> = ({ holdings, accounts, onUpdatePrice, onA
               <th className="px-4 py-3">{translations.holdings.market}</th>
               <th className="px-4 py-3">{translations.holdings.ticker}</th>
               <th className="px-4 py-3 text-right">{translations.holdings.quantity}</th>
-              <th className="px-4 py-3 text-right">{translations.holdings.currentPrice} {language === 'zh-TW' ? '(Updated)' : ''}</th>
-              <th className="px-4 py-3 w-32 text-left">{translations.holdings.weight} {language === 'zh-TW' ? '(Weight)' : ''}</th>
-              <th className="px-4 py-3 text-right">{translations.holdings.cost} {language === 'zh-TW' ? '(Cost)' : ''}</th>
-              <th className="px-4 py-3 text-right">{translations.holdings.marketValue} {language === 'zh-TW' ? '(Val)' : ''}</th>
-              <th className="px-4 py-3 text-right">{translations.holdings.profitLoss} {language === 'zh-TW' ? '(P/L)' : ''}</th>
-              <th className="px-4 py-3 text-right">{translations.holdings.annualizedROI} {language === 'zh-TW' ? '(ROI)' : ''}</th>
+              <th className="px-4 py-3 text-right">{translations.holdings.currentPrice}</th>
+              <th className="px-4 py-3 w-32 text-left">{translations.holdings.weight}</th>
+              <th className="px-4 py-3 text-right">{translations.holdings.cost}</th>
+              <th className="px-4 py-3 text-right">{translations.holdings.marketValue}</th>
+              <th className="px-4 py-3 text-right">{translations.holdings.profitLoss}</th>
+              <th className="px-4 py-3 text-right">{translations.holdings.annualizedROI}</th>
               <th className="px-4 py-3 text-right">{translations.holdings.dailyChange}</th>
-              <th className="px-4 py-3 text-right">{translations.holdings.avgPrice} {language === 'zh-TW' ? '(Avg)' : ''}</th>
+              <th className="px-4 py-3 text-right">{translations.holdings.avgPrice}</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-50 bg-white">
