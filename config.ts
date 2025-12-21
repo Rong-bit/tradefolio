@@ -10,4 +10,5 @@ export const GLOBAL_AUTHORIZED_USERS = [
   // 您可以在此加入其他使用者的 Email
    'hcj382000@gmail.com',
    'chenyu1679@gmail.com',
-];
+   'yuzhen422@gmail.com',
+  ]
