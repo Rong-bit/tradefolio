@@ -44,7 +44,8 @@ const Dashboard: React.FC<Props> = ({
   const [showDetails, setShowDetails] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
   const [showCostDetailModal, setShowCostDetailModal] = useState(false);
-  const [showInUSD, setShowInUSD] = useState(false); // 切換顯示幣種：false=台幣, true=美金
+  const [showAccountInUSD, setShowAccountInUSD] = useState(false); // 證券戶列表切換顯示幣種：false=台幣, true=美金
+  const [showAnnualInUSD, setShowAnnualInUSD] = useState(false); // 年度績效表切換顯示幣種：false=台幣, true=美金
 
   useEffect(() => {
     // 確保組件完全掛載，防止 hydration 錯誤
@@ -352,8 +353,31 @@ const Dashboard: React.FC<Props> = ({
       {/* Annual Performance Table (Below Charts) - Only shown if NOT guest */}
       {!isGuest && annualPerformance.length > 0 && (
           <div className="bg-white rounded-xl shadow overflow-hidden">
-            <div className="px-6 py-4 border-b border-slate-100">
+            <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center">
               <h3 className="font-bold text-slate-800 text-lg">{translations.dashboard.annualPerformance}</h3>
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-slate-600">{translations.dashboard.displayCurrency}:</span>
+                <button
+                  onClick={() => setShowAnnualInUSD(false)}
+                  className={`px-3 py-1.5 text-sm rounded transition ${
+                    !showAnnualInUSD 
+                      ? 'bg-indigo-600 text-white font-medium' 
+                      : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                  }`}
+                >
+                  {translations.dashboard.ntd}
+                </button>
+                <button
+                  onClick={() => setShowAnnualInUSD(true)}
+                  className={`px-3 py-1.5 text-sm rounded transition ${
+                    showAnnualInUSD 
+                      ? 'bg-indigo-600 text-white font-medium' 
+                      : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                  }`}
+                >
+                  {translations.dashboard.usd}
+                </button>
+              </div>
             </div>
             <div className="overflow-x-auto">
               <table className="min-w-full text-sm text-left">
@@ -370,11 +394,11 @@ const Dashboard: React.FC<Props> = ({
                 <tbody className="divide-y divide-slate-100">
                   {annualPerformance.map(item => {
                     // 根據切換狀態決定顯示的幣種和數值
-                    const displayCurrency = showInUSD ? 'USD' : 'TWD';
-                    const startAssets = showInUSD ? item.startAssets / summary.exchangeRateUsdToTwd : item.startAssets;
-                    const netInflow = showInUSD ? item.netInflow / summary.exchangeRateUsdToTwd : item.netInflow;
-                    const endAssets = showInUSD ? item.endAssets / summary.exchangeRateUsdToTwd : item.endAssets;
-                    const profit = showInUSD ? item.profit / summary.exchangeRateUsdToTwd : item.profit;
+                    const displayCurrency = showAnnualInUSD ? 'USD' : 'TWD';
+                    const startAssets = showAnnualInUSD ? item.startAssets / summary.exchangeRateUsdToTwd : item.startAssets;
+                    const netInflow = showAnnualInUSD ? item.netInflow / summary.exchangeRateUsdToTwd : item.netInflow;
+                    const endAssets = showAnnualInUSD ? item.endAssets / summary.exchangeRateUsdToTwd : item.endAssets;
+                    const profit = showAnnualInUSD ? item.profit / summary.exchangeRateUsdToTwd : item.profit;
                     
                     return (
                       <tr key={item.year} className="hover:bg-slate-50">
@@ -407,9 +431,9 @@ const Dashboard: React.FC<Props> = ({
           <div className="flex items-center gap-2">
             <span className="text-sm text-slate-600">{translations.dashboard.displayCurrency}:</span>
             <button
-              onClick={() => setShowInUSD(false)}
+              onClick={() => setShowAccountInUSD(false)}
               className={`px-3 py-1.5 text-sm rounded transition ${
-                !showInUSD 
+                !showAccountInUSD 
                   ? 'bg-indigo-600 text-white font-medium' 
                   : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
               }`}
@@ -417,9 +441,9 @@ const Dashboard: React.FC<Props> = ({
               {translations.dashboard.ntd}
             </button>
             <button
-              onClick={() => setShowInUSD(true)}
+              onClick={() => setShowAccountInUSD(true)}
               className={`px-3 py-1.5 text-sm rounded transition ${
-                showInUSD 
+                showAccountInUSD 
                   ? 'bg-indigo-600 text-white font-medium' 
                   : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
               }`}
@@ -450,7 +474,7 @@ const Dashboard: React.FC<Props> = ({
                   let cashBalance: number;
                   let profit: number;
                   
-                  if (showInUSD) {
+                  if (showAccountInUSD) {
                     // 切換到美金顯示
                     if (acc.currency === Currency.USD) {
                       // 美金帳戶：顯示原始美金值
