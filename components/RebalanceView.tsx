@@ -19,6 +19,8 @@ const RebalanceView: React.FC<Props> = ({ summary, holdings, exchangeRate, targe
   
   // 追蹤哪些項目需要再平衡（包括現金）
   const [enabledItems, setEnabledItems] = useState<Set<string>>(new Set());
+  // 貨幣切換：false=台幣, true=美金
+  const [showInUSD, setShowInUSD] = useState(false);
   
   const handleTargetChange = (mergedKey: string, val: string, accountIds: string[], ticker: string) => {
     const num = parseFloat(val);
@@ -238,6 +240,30 @@ const RebalanceView: React.FC<Props> = ({ summary, holdings, exchangeRate, targe
           <h3 className="font-bold text-lg text-slate-800">{translations.rebalance.title}</h3>
           <div className="flex flex-col items-end">
              <div className="flex items-center gap-4">
+               {/* 貨幣切換開關 */}
+               <div className="flex items-center gap-2">
+                 <span className="text-sm text-slate-600">{translations.dashboard.displayCurrency}:</span>
+                 <button
+                   onClick={() => setShowInUSD(false)}
+                   className={`px-3 py-1.5 text-sm rounded transition ${
+                     !showInUSD 
+                       ? 'bg-indigo-600 text-white font-medium' 
+                       : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                   }`}
+                 >
+                   {translations.dashboard.ntd}
+                 </button>
+                 <button
+                   onClick={() => setShowInUSD(true)}
+                   className={`px-3 py-1.5 text-sm rounded transition ${
+                     showInUSD 
+                       ? 'bg-indigo-600 text-white font-medium' 
+                       : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                   }`}
+                 >
+                   {translations.dashboard.usd}
+                 </button>
+               </div>
                <button 
                   onClick={handleResetToCurrent}
                   className="text-xs bg-slate-100 hover:bg-slate-200 text-slate-600 px-3 py-1.5 rounded border border-slate-300 transition"
@@ -247,7 +273,7 @@ const RebalanceView: React.FC<Props> = ({ summary, holdings, exchangeRate, targe
                <div>
                  <p className="text-xs text-slate-500 text-right">{translations.rebalance.totalAssets}</p>
                  <p className="text-xl font-bold font-mono text-slate-800">
-                   {formatCurrency(totalPortfolioValue, 'TWD')}
+                   {formatCurrency(showInUSD ? totalPortfolioValue / summary.exchangeRateUsdToTwd : totalPortfolioValue, showInUSD ? 'USD' : 'TWD')}
                  </p>
                </div>
              </div>
@@ -261,7 +287,7 @@ const RebalanceView: React.FC<Props> = ({ summary, holdings, exchangeRate, targe
                 <th className="px-4 py-3 w-12">{translations.rebalance.enable}</th>
                 <th className="px-4 py-3">{translations.rebalance.symbol} {language === 'zh-TW' ? '(帳戶)' : '(Account)'}</th>
                 <th className="px-4 py-3 text-right">{translations.rebalance.currentPrice}</th>
-                <th className="px-4 py-3 text-right">{translations.rebalance.currentValue} {language === 'zh-TW' ? '(TWD)' : ''}</th>
+                <th className="px-4 py-3 text-right">{translations.rebalance.currentValue} ({showInUSD ? translations.dashboard.usd : translations.dashboard.ntd})</th>
                 <th className="px-4 py-3 text-right">{translations.rebalance.currentWeight}</th>
                 <th className="px-4 py-3 text-right w-36">{translations.rebalance.targetWeight} %</th>
                 <th className="px-4 py-3 text-right">{translations.rebalance.targetValue}</th>
@@ -276,6 +302,13 @@ const RebalanceView: React.FC<Props> = ({ summary, holdings, exchangeRate, targe
                 const accountInfo = row.accountIds.length > 1 
                   ? (language === 'zh-TW' ? ` (${row.accountIds.length}個帳戶)` : ` (${row.accountIds.length}${translations.rebalance.accounts})`) 
                   : '';
+                
+                // 根據貨幣切換狀態計算顯示的金額
+                const displayCurrency = showInUSD ? 'USD' : 'TWD';
+                const displayVal = showInUSD ? row.valTwd / summary.exchangeRateUsdToTwd : row.valTwd;
+                const displayTargetVal = showInUSD ? row.targetValTwd / summary.exchangeRateUsdToTwd : row.targetValTwd;
+                const displayDiffVal = showInUSD ? row.diffValTwd / summary.exchangeRateUsdToTwd : row.diffValTwd;
+                
                 return (
                   <tr key={row.mergedKey} className={`hover:bg-slate-50 ${!isEnabled ? 'opacity-50' : ''}`}>
                     <td className="px-4 py-3 text-center">
@@ -301,7 +334,7 @@ const RebalanceView: React.FC<Props> = ({ summary, holdings, exchangeRate, targe
                       {row.currentPrice.toFixed(2)}
                     </td>
                     <td className="px-4 py-3 text-right font-mono">
-                      {formatCurrency(row.valTwd, 'TWD')}
+                      {formatCurrency(displayVal, displayCurrency)}
                     </td>
                     <td className="px-4 py-3 text-right text-slate-500">
                       {row.currentPct.toFixed(1)}%
@@ -325,10 +358,10 @@ const RebalanceView: React.FC<Props> = ({ summary, holdings, exchangeRate, targe
                       </div>
                     </td>
                     <td className={`px-4 py-3 text-right ${isEnabled ? 'text-slate-500' : 'text-slate-300'}`}>
-                       {formatCurrency(row.targetValTwd, 'TWD')}
+                       {formatCurrency(displayTargetVal, displayCurrency)}
                     </td>
                     <td className={`px-4 py-3 text-right font-medium ${isEnabled ? (isBuy ? 'text-red-600' : 'text-green-600') : 'text-slate-300'}`}>
-                      {formatCurrency(row.diffValTwd, 'TWD')}
+                      {formatCurrency(displayDiffVal, displayCurrency)}
                     </td>
                     <td className={`px-4 py-3 text-right font-bold ${isEnabled ? (isBuy ? 'text-red-600' : 'text-green-600') : 'text-slate-300'}`}>
                       {isEnabled ? (
@@ -355,16 +388,18 @@ const RebalanceView: React.FC<Props> = ({ summary, holdings, exchangeRate, targe
                 </td>
                 <td className="px-4 py-3 text-slate-700">{translations.rebalance.cash}</td>
                 <td className="px-4 py-3 text-right">-</td>
-                <td className="px-4 py-3 text-right font-mono">{formatCurrency(summary.cashBalanceTWD, 'TWD')}</td>
+                <td className="px-4 py-3 text-right font-mono">
+                  {formatCurrency(showInUSD ? summary.cashBalanceTWD / summary.exchangeRateUsdToTwd : summary.cashBalanceTWD, showInUSD ? 'USD' : 'TWD')}
+                </td>
                 <td className="px-4 py-3 text-right">{((summary.cashBalanceTWD / totalPortfolioValue) * 100).toFixed(1)}%</td>
                 <td className={`px-4 py-3 text-right font-bold ${isCashEnabled ? (cashTargetPct < 0 ? 'text-red-500' : 'text-slate-700') : 'text-slate-300'}`}>
                   {isCashEnabled ? cashTargetPct.toFixed(1) : '0.0'}%
                 </td>
                 <td className={`px-4 py-3 text-right ${isCashEnabled ? '' : 'text-slate-300'}`}>
-                  {formatCurrency(targetCashTwd, 'TWD')}
+                  {formatCurrency(showInUSD ? targetCashTwd / summary.exchangeRateUsdToTwd : targetCashTwd, showInUSD ? 'USD' : 'TWD')}
                 </td>
                 <td className={`px-4 py-3 text-right ${isCashEnabled ? (diffCashTwd > 0 ? 'text-blue-600' : 'text-slate-500') : 'text-slate-300'}`}>
-                  {formatCurrency(diffCashTwd, 'TWD')}
+                  {formatCurrency(showInUSD ? diffCashTwd / summary.exchangeRateUsdToTwd : diffCashTwd, showInUSD ? 'USD' : 'TWD')}
                 </td>
                 <td className="px-4 py-3 text-right text-xs text-slate-400">
                   {isCashEnabled ? `(${translations.rebalance.remainingFunds})` : `(${translations.rebalance.notParticipating})`}
