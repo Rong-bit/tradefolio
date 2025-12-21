@@ -78,6 +78,9 @@ export interface Translations {
     marketValueNT: string;
     balanceNT: string;
     profitNT: string;
+    displayCurrency: string;
+    ntd: string;
+    usd: string;
     annualizedROI: string;
     portfolioHoldings: string;
     mergedDisplay: string;
@@ -437,6 +440,9 @@ const zhTW: Translations = {
     balanceNT: '餘額',
     profitNT: '損益',
     annualizedROI: '年化報酬率',
+    displayCurrency: '顯示幣種',
+    ntd: '台幣',
+    usd: '美金',
     portfolioHoldings: '資產配置明細',
     mergedDisplay: '合併顯示 (依標的)',
     detailedDisplay: '明細顯示 (依帳戶)',
@@ -837,6 +843,9 @@ const en: Translations = {
     balanceNT: 'Balance (NT$)',
     profitNT: 'Profit (NT$)',
     annualizedROI: 'Annualized ROI',
+    displayCurrency: 'Display Currency',
+    ntd: 'NTD',
+    usd: 'USD',
     portfolioHoldings: 'Portfolio Holdings',
     mergedDisplay: 'Merged (By Symbol)',
     detailedDisplay: 'Detailed (By Account)',

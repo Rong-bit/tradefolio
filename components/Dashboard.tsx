@@ -44,6 +44,7 @@ const Dashboard: React.FC<Props> = ({
   const [showDetails, setShowDetails] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
   const [showCostDetailModal, setShowCostDetailModal] = useState(false);
+  const [showInUSD, setShowInUSD] = useState(false); // 切換顯示幣種：false=台幣, true=美金
 
   useEffect(() => {
     // 確保組件完全掛載，防止 hydration 錯誤
@@ -367,23 +368,32 @@ const Dashboard: React.FC<Props> = ({
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {annualPerformance.map(item => (
-                    <tr key={item.year} className="hover:bg-slate-50">
-                      <td className="px-6 py-3 font-bold text-slate-700">
-                        {item.year}
-                        {item.isRealData && <span title={language === 'zh-TW' ? '真實歷史數據' : 'Real historical data'} className="ml-2 text-xs cursor-help">✅</span>}
-                      </td>
-                      <td className="px-6 py-3 text-right text-slate-500">{formatCurrency(item.startAssets, 'TWD')}</td>
-                      <td className="px-6 py-3 text-right text-slate-500">{formatCurrency(item.netInflow, 'TWD')}</td>
-                      <td className="px-6 py-3 text-right font-medium">{formatCurrency(item.endAssets, 'TWD')}</td>
-                      <td className={`px-6 py-3 text-right font-bold ${item.profit >= 0 ? 'text-success' : 'text-danger'}`}>
-                        {formatCurrency(item.profit, 'TWD')}
-                      </td>
-                      <td className={`px-6 py-3 text-right font-bold ${item.roi >= 0 ? 'text-success' : 'text-danger'}`}>
-                        {item.roi.toFixed(2)}%
-                      </td>
-                    </tr>
-                  ))}
+                  {annualPerformance.map(item => {
+                    // 根據切換狀態決定顯示的幣種和數值
+                    const displayCurrency = showInUSD ? 'USD' : 'TWD';
+                    const startAssets = showInUSD ? item.startAssets / summary.exchangeRateUsdToTwd : item.startAssets;
+                    const netInflow = showInUSD ? item.netInflow / summary.exchangeRateUsdToTwd : item.netInflow;
+                    const endAssets = showInUSD ? item.endAssets / summary.exchangeRateUsdToTwd : item.endAssets;
+                    const profit = showInUSD ? item.profit / summary.exchangeRateUsdToTwd : item.profit;
+                    
+                    return (
+                      <tr key={item.year} className="hover:bg-slate-50">
+                        <td className="px-6 py-3 font-bold text-slate-700">
+                          {item.year}
+                          {item.isRealData && <span title={language === 'zh-TW' ? '真實歷史數據' : 'Real historical data'} className="ml-2 text-xs cursor-help">✅</span>}
+                        </td>
+                        <td className="px-6 py-3 text-right text-slate-500">{formatCurrency(startAssets, displayCurrency)}</td>
+                        <td className="px-6 py-3 text-right text-slate-500">{formatCurrency(netInflow, displayCurrency)}</td>
+                        <td className="px-6 py-3 text-right font-medium">{formatCurrency(endAssets, displayCurrency)}</td>
+                        <td className={`px-6 py-3 text-right font-bold ${profit >= 0 ? 'text-success' : 'text-danger'}`}>
+                          {formatCurrency(profit, displayCurrency)}
+                        </td>
+                        <td className={`px-6 py-3 text-right font-bold ${item.roi >= 0 ? 'text-success' : 'text-danger'}`}>
+                          {item.roi.toFixed(2)}%
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
@@ -392,8 +402,31 @@ const Dashboard: React.FC<Props> = ({
 
       {/* Account List Card */}
       <div className="bg-white rounded-xl shadow overflow-hidden">
-        <div className="px-6 py-4 border-b border-slate-100">
+        <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center">
           <h3 className="font-bold text-slate-800 text-lg">{translations.dashboard.brokerageAccounts}</h3>
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-slate-600">{translations.dashboard.displayCurrency}:</span>
+            <button
+              onClick={() => setShowInUSD(false)}
+              className={`px-3 py-1.5 text-sm rounded transition ${
+                !showInUSD 
+                  ? 'bg-indigo-600 text-white font-medium' 
+                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+              }`}
+            >
+              {translations.dashboard.ntd}
+            </button>
+            <button
+              onClick={() => setShowInUSD(true)}
+              className={`px-3 py-1.5 text-sm rounded transition ${
+                showInUSD 
+                  ? 'bg-indigo-600 text-white font-medium' 
+                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+              }`}
+            >
+              {translations.dashboard.usd}
+            </button>
+          </div>
         </div>
         <div className="overflow-x-auto">
           <table className="min-w-full text-sm text-left">
@@ -409,29 +442,72 @@ const Dashboard: React.FC<Props> = ({
             </thead>
             <tbody className="divide-y divide-slate-100">
               {accountPerformance.length > 0 ? (
-                accountPerformance.map(acc => (
-                  <tr key={acc.id} className="hover:bg-slate-50">
-                    <td className="px-6 py-3 font-semibold text-slate-700">
-                      {acc.name} 
-                      <span className="text-xs font-normal text-slate-400 ml-1">({acc.currency})</span>
-                    </td>
-                    <td className="px-6 py-3 text-right font-bold text-slate-700">
-                      {formatCurrency(acc.totalAssetsTWD, 'TWD')}
-                    </td>
-                    <td className="px-6 py-3 text-right text-slate-600">
-                      {formatCurrency(acc.marketValueTWD, 'TWD')}
-                    </td>
-                    <td className="px-6 py-3 text-right text-slate-600">
-                      {formatCurrency(acc.cashBalanceTWD, 'TWD')}
-                    </td>
-                    <td className={`px-6 py-3 text-right font-bold ${acc.profitTWD >= 0 ? 'text-success' : 'text-danger'}`}>
-                      {formatCurrency(acc.profitTWD, 'TWD')}
-                    </td>
-                    <td className={`px-6 py-3 text-right font-bold ${acc.roi >= 0 ? 'text-success' : 'text-danger'}`}>
-                      {acc.roi.toFixed(2)}%
-                    </td>
-                  </tr>
-                ))
+                accountPerformance.map(acc => {
+                  // 根據切換狀態決定顯示的幣種和數值
+                  let displayCurrency: string;
+                  let totalAssets: number;
+                  let marketValue: number;
+                  let cashBalance: number;
+                  let profit: number;
+                  
+                  if (showInUSD) {
+                    // 切換到美金顯示
+                    if (acc.currency === Currency.USD) {
+                      // 美金帳戶：顯示原始美金值
+                      displayCurrency = 'USD';
+                      totalAssets = acc.totalAssetsNative || acc.totalAssetsTWD / summary.exchangeRateUsdToTwd;
+                      marketValue = acc.marketValueNative || acc.marketValueTWD / summary.exchangeRateUsdToTwd;
+                      cashBalance = acc.cashBalanceNative || acc.cashBalanceTWD / summary.exchangeRateUsdToTwd;
+                      profit = acc.profitNative || acc.profitTWD / summary.exchangeRateUsdToTwd;
+                    } else if (acc.currency === Currency.JPY) {
+                      // 日幣帳戶：轉換為美金顯示
+                      const jpyToUsdRate = summary.jpyExchangeRate && summary.exchangeRateUsdToTwd ? summary.jpyExchangeRate / summary.exchangeRateUsdToTwd : 0.0067; // 預設約 1 JPY = 0.0067 USD
+                      displayCurrency = 'USD';
+                      totalAssets = acc.totalAssetsTWD / summary.exchangeRateUsdToTwd;
+                      marketValue = acc.marketValueTWD / summary.exchangeRateUsdToTwd;
+                      cashBalance = acc.cashBalanceTWD / summary.exchangeRateUsdToTwd;
+                      profit = acc.profitTWD / summary.exchangeRateUsdToTwd;
+                    } else {
+                      // 台幣帳戶：轉換為美金顯示
+                      displayCurrency = 'USD';
+                      totalAssets = acc.totalAssetsTWD / summary.exchangeRateUsdToTwd;
+                      marketValue = acc.marketValueTWD / summary.exchangeRateUsdToTwd;
+                      cashBalance = acc.cashBalanceTWD / summary.exchangeRateUsdToTwd;
+                      profit = acc.profitTWD / summary.exchangeRateUsdToTwd;
+                    }
+                  } else {
+                    // 切換到台幣顯示（預設）
+                    displayCurrency = 'TWD';
+                    totalAssets = acc.totalAssetsTWD;
+                    marketValue = acc.marketValueTWD;
+                    cashBalance = acc.cashBalanceTWD;
+                    profit = acc.profitTWD;
+                  }
+                  
+                  return (
+                    <tr key={acc.id} className="hover:bg-slate-50">
+                      <td className="px-6 py-3 font-semibold text-slate-700">
+                        {acc.name} 
+                        <span className="text-xs font-normal text-slate-400 ml-1">({acc.currency})</span>
+                      </td>
+                      <td className="px-6 py-3 text-right font-bold text-slate-700">
+                        {formatCurrency(totalAssets, displayCurrency)}
+                      </td>
+                      <td className="px-6 py-3 text-right text-slate-600">
+                        {formatCurrency(marketValue, displayCurrency)}
+                      </td>
+                      <td className="px-6 py-3 text-right text-slate-600">
+                        {formatCurrency(cashBalance, displayCurrency)}
+                      </td>
+                      <td className={`px-6 py-3 text-right font-bold ${profit >= 0 ? 'text-success' : 'text-danger'}`}>
+                        {formatCurrency(profit, displayCurrency)}
+                      </td>
+                      <td className={`px-6 py-3 text-right font-bold ${acc.roi >= 0 ? 'text-success' : 'text-danger'}`}>
+                        {acc.roi.toFixed(2)}%
+                      </td>
+                    </tr>
+                  );
+                })
               ) : (
                 <tr>
                   <td colSpan={6} className="px-6 py-8 text-center text-slate-400">{translations.dashboard.noAccounts}</td>

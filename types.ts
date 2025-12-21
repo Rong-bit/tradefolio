@@ -134,6 +134,12 @@ export interface AccountPerformance {
   cashBalanceTWD: number;
   profitTWD: number;
   roi: number;
+  // 原始幣種數值（用於切換顯示）
+  totalAssetsNative?: number;
+  marketValueNative?: number;
+  cashBalanceNative?: number;
+  profitNative?: number;
+  netInvestedNative?: number;
 }
 
 // New Interface for Historical Data Storage

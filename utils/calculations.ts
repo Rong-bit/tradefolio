@@ -657,6 +657,14 @@ export const calculateAccountPerformance = (
     const profitTWD = totalAssetsTWD - netInvestedTWD;
     const roi = netInvestedTWD > 0 ? (profitTWD / netInvestedTWD) * 100 : 0;
 
+    // 計算原始幣種數值（用於切換顯示）
+    // stockValueNative 已經是原始幣種（美金帳戶=美金，台幣帳戶=台幣，日幣帳戶=日幣）
+    const totalAssetsNative = isUSD ? totalAssetsTWD / exchangeRate : (isJPY ? totalAssetsTWD / (jpyExchangeRate || exchangeRate) : totalAssetsTWD);
+    const marketValueNative = stockValueNative; // 已經是原始幣種
+    const cashBalanceNative = acc.balance; // 已經是原始幣種
+    const profitNative = isUSD ? profitTWD / exchangeRate : (isJPY ? profitTWD / (jpyExchangeRate || exchangeRate) : profitTWD);
+    const netInvestedNative = isUSD ? netInvestedTWD / exchangeRate : (isJPY ? netInvestedTWD / (jpyExchangeRate || exchangeRate) : netInvestedTWD);
+
     return {
       id: acc.id,
       name: acc.name,
@@ -665,7 +673,12 @@ export const calculateAccountPerformance = (
       marketValueTWD: stockValueTWD,
       cashBalanceTWD: cashTWD,
       profitTWD,
-      roi
+      roi,
+      totalAssetsNative,
+      marketValueNative,
+      cashBalanceNative,
+      profitNative,
+      netInvestedNative
     };
   });
 };

@@ -521,6 +521,8 @@ const App: React.FC = () => {
        const account = accounts.find(a => a.id === cf.accountId);
        
        // 1. Calculate Net Invested (Cost)
+       // 注意：只計算 DEPOSIT 和 WITHDRAW，不包含 TRANSFER（帳戶間轉移）
+       // TRANSFER_IN/TRANSFER_OUT 也不計入，因為它們只是帳戶間股票轉移，不影響淨投入成本
        if(cf.type === CashFlowType.DEPOSIT) {
            const rate = (cf.exchangeRate || (account?.currency === Currency.USD ? exchangeRate : 1));
            netInvestedTWD += (cf.amountTWD || cf.amount * rate);
