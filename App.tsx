@@ -1314,6 +1314,7 @@ const App: React.FC = () => {
                          <th className="px-2 sm:px-4 py-2 sm:py-3 whitespace-nowrap hidden md:table-cell">{t(language).labels.category}</th>
                          <th className="px-2 sm:px-4 py-2 sm:py-3 text-right whitespace-nowrap">{t(language).labels.price}</th>
                          <th className="px-2 sm:px-4 py-2 sm:py-3 text-right whitespace-nowrap">{t(language).labels.quantity}</th>
+                         <th className="px-2 sm:px-4 py-2 sm:py-3 text-right whitespace-nowrap">{t(language).labels.fee}</th>
                          <th className="px-2 sm:px-4 py-2 sm:py-3 text-right whitespace-nowrap">{t(language).labels.amount}</th>
                          <th className="px-2 sm:px-4 py-2 sm:py-3 text-right whitespace-nowrap hidden md:table-cell">{t(language).labels.balance}</th>
                          <th className="px-2 sm:px-4 py-2 sm:py-3 text-center whitespace-nowrap">{t(language).labels.action}</th>
@@ -1388,6 +1389,9 @@ const App: React.FC = () => {
                              </td>
                              <td className="px-2 sm:px-4 py-2 sm:py-3 text-right font-mono text-slate-600 text-xs">
                                {record.type === 'TRANSACTION' ? formatNumber(record.quantity) : '-'}
+                             </td>
+                             <td className="px-2 sm:px-4 py-2 sm:py-3 text-right font-mono text-slate-600 text-xs">
+                               {record.type === 'TRANSACTION' && (record as any).fees > 0 ? formatNumber((record as any).fees) : '-'}
                              </td>
                              <td className="px-2 sm:px-4 py-2 sm:py-3 text-right font-bold font-mono text-slate-700 text-xs sm:text-sm">
                                {record.amount % 1 === 0 ? record.amount.toString() : record.amount.toFixed(2)}
