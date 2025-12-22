@@ -441,8 +441,8 @@ const RebalanceView: React.FC<Props> = ({ summary, holdings, exchangeRate, jpyEx
             <tfoot className="bg-slate-100 font-bold border-t-2 border-slate-300">
                <tr>
                  <td colSpan={5} className="px-4 py-3 text-right">{language === 'zh-TW' ? '總計 (' : 'Total ('}{translations.rebalance.totalEnabled}{language === 'zh-TW' ? ')' : ')'}</td>
-                 <td className={`px-4 py-3 text-right ${Math.abs(totalTargetPct + cashTargetPct - 100) > 0.1 ? 'text-red-600' : 'text-slate-800'}`}>
-                   {(totalTargetPct + cashTargetPct).toFixed(0)}%
+                 <td className={`px-4 py-3 text-right ${Math.abs(totalTargetPct + cashTargetPct - 100) > 0.01 ? 'text-red-600' : 'text-slate-800'}`}>
+                   {(totalTargetPct + cashTargetPct).toFixed(2)}%
                  </td>
                  <td colSpan={3}></td>
                </tr>
