@@ -67,6 +67,7 @@ const App: React.FC = () => {
   const [exchangeRate, setExchangeRate] = useState<number>(31.5);
   const [jpyExchangeRate, setJpyExchangeRate] = useState<number | undefined>(undefined);
   const [rebalanceTargets, setRebalanceTargets] = useState<Record<string, number>>({});
+  const [rebalanceEnabledItems, setRebalanceEnabledItems] = useState<string[]>([]);
   const [historicalData, setHistoricalData] = useState<HistoricalData>({}); 
   
   const [isFormOpen, setIsFormOpen] = useState(false);
@@ -195,6 +196,7 @@ const App: React.FC = () => {
     setExchangeRate(31.5);
     setJpyExchangeRate(undefined);
     setRebalanceTargets({});
+    setRebalanceEnabledItems([]);
     setHistoricalData({});
     setHasAutoUpdated(false); // 重置自動更新狀態
   };
@@ -221,6 +223,7 @@ const App: React.FC = () => {
     setJpyExchangeRate(jpyRate ? parseFloat(jpyRate) : undefined);
     
     setRebalanceTargets(load('rebalanceTargets', {}));
+    setRebalanceEnabledItems(load('rebalanceEnabledItems', []));
     setHistoricalData(load('historicalData', {}));
 
   }, [isAuthenticated, currentUser]);
@@ -239,8 +242,9 @@ const App: React.FC = () => {
       localStorage.setItem(getKey('jpyExchangeRate'), jpyExchangeRate.toString());
     }
     localStorage.setItem(getKey('rebalanceTargets'), JSON.stringify(rebalanceTargets));
+    localStorage.setItem(getKey('rebalanceEnabledItems'), JSON.stringify(rebalanceEnabledItems));
     localStorage.setItem(getKey('historicalData'), JSON.stringify(historicalData));
-  }, [transactions, accounts, cashFlows, currentPrices, priceDetails, exchangeRate, jpyExchangeRate, rebalanceTargets, historicalData, isAuthenticated, currentUser]);
+  }, [transactions, accounts, cashFlows, currentPrices, priceDetails, exchangeRate, jpyExchangeRate, rebalanceTargets, rebalanceEnabledItems, historicalData, isAuthenticated, currentUser]);
 
   const showAlert = (message: string, title: string = '提示', type: 'info' | 'success' | 'error' = 'info') => {
     setAlertDialog({ isOpen: true, title, message, type });
@@ -361,7 +365,8 @@ const App: React.FC = () => {
         currentPrices, 
         priceDetails, 
         exchangeRate, 
-        rebalanceTargets, 
+        rebalanceTargets,
+        rebalanceEnabledItems,
         historicalData 
       };
 
@@ -404,6 +409,7 @@ const App: React.FC = () => {
         if (data.priceDetails) setPriceDetails(data.priceDetails);
         if (data.exchangeRate) setExchangeRate(data.exchangeRate);
         if (data.rebalanceTargets) setRebalanceTargets(data.rebalanceTargets);
+        if (data.rebalanceEnabledItems) setRebalanceEnabledItems(data.rebalanceEnabledItems);
         if (data.historicalData) setHistoricalData(data.historicalData);
         showAlert(`成功還原資料！`, "還原成功", "success");
       } catch (err) {
@@ -1498,6 +1504,8 @@ const App: React.FC = () => {
                  jpyExchangeRate={jpyExchangeRate}
                  targets={rebalanceTargets}
                  onUpdateTargets={updateRebalanceTargets}
+                 enabledItems={rebalanceEnabledItems}
+                 onUpdateEnabledItems={setRebalanceEnabledItems}
                  language={language}
                />
             )}
