@@ -624,7 +624,7 @@ const App: React.FC = () => {
   }, [isAuthenticated, baseHoldings.length, hasAutoUpdated]);
 
   const chartData = useMemo(() => generateAdvancedChartData(transactions, cashFlows, accounts, summary.totalValueTWD + summary.cashBalanceTWD, exchangeRate, historicalData, jpyExchangeRate), [transactions, cashFlows, accounts, summary, exchangeRate, historicalData, jpyExchangeRate]);
-  const assetAllocation = useMemo(() => calculateAssetAllocation(holdings, summary.cashBalanceTWD, exchangeRate), [holdings, summary, exchangeRate]);
+  const assetAllocation = useMemo(() => calculateAssetAllocation(holdings, summary.cashBalanceTWD, exchangeRate, jpyExchangeRate), [holdings, summary, exchangeRate, jpyExchangeRate]);
   const annualPerformance = useMemo(() => calculateAnnualPerformance(chartData), [chartData]);
   const accountPerformance = useMemo(() => calculateAccountPerformance(computedAccounts, holdings, cashFlows, transactions, exchangeRate, jpyExchangeRate), [computedAccounts, holdings, cashFlows, transactions, exchangeRate, jpyExchangeRate]);
 
@@ -1495,6 +1495,7 @@ const App: React.FC = () => {
                  summary={summary}
                  holdings={holdings}
                  exchangeRate={exchangeRate}
+                 jpyExchangeRate={jpyExchangeRate}
                  targets={rebalanceTargets}
                  onUpdateTargets={updateRebalanceTargets}
                  language={language}
