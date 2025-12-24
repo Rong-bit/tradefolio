@@ -883,18 +883,21 @@ const App: React.FC = () => {
                   className="mt-1 w-full border border-slate-300 rounded-md p-3 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors"
                   placeholder="name@example.com"
                 />
+                <p className="mt-1 text-xs text-slate-500">{language === 'en' ? 'Please enter your E-mail' : '請輸入您的 E-mail'}</p>
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-slate-700">{t(language).login.password}</label>
-                <input 
-                  type="password" 
-                  value={loginPassword}
-                  onChange={(e) => setLoginPassword(e.target.value)}
-                  className="mt-1 w-full border border-slate-300 rounded-md p-3 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors"
-                  placeholder={language === 'en' ? 'Not required for authorized users' : '授權使用者無需輸入'}
-                />
-              </div>
+              {loginEmail === ADMIN_EMAIL && (
+                <div>
+                  <label className="block text-sm font-medium text-slate-700">{t(language).login.password}</label>
+                  <input 
+                    type="password" 
+                    value={loginPassword}
+                    onChange={(e) => setLoginPassword(e.target.value)}
+                    className="mt-1 w-full border border-slate-300 rounded-md p-3 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors"
+                    placeholder={language === 'en' ? 'Enter password' : '請輸入密碼'}
+                  />
+                </div>
+              )}
 
               <button 
                 type="submit"
