@@ -883,7 +883,7 @@ const App: React.FC = () => {
                   className="mt-1 w-full border border-slate-300 rounded-md p-3 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors"
                   placeholder="name@example.com"
                 />
-                <p className="mt-1 text-xs text-slate-500">{language === 'en' ? 'Please enter your E-mail' : '請輸入您的 E-mail'}</p>
+                <p className="mt-1 text-xs text-slate-500">{language === 'en' ? 'Please enter your E-mail' : '初次使用，請輸入您的 E-mail'}</p>
               </div>
 
               {loginEmail === ADMIN_EMAIL && (
