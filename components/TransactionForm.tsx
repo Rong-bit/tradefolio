@@ -131,6 +131,24 @@ const TransactionForm: React.FC<Props> = ({ accounts, onAdd, onUpdate, onClose, 
     setFormData(newFormData);
   };
 
+  // 計算預覽金額
+  const calculatePreviewAmount = (): number => {
+    const price = parseFloat(formData.price) || 0;
+    const quantity = formData.type === TransactionType.CASH_DIVIDEND ? 1 : (parseFloat(formData.quantity) || 0);
+    const fees = parseFloat(formData.fees) || 0;
+    
+    if (formData.type === TransactionType.BUY || formData.type === TransactionType.SELL) {
+      let baseAmount = price * quantity;
+      if (formData.market === Market.TW) {
+        baseAmount = Math.floor(baseAmount);
+      }
+      return formData.type === TransactionType.BUY ? baseAmount + fees : baseAmount - fees;
+    } else if (formData.type === TransactionType.CASH_DIVIDEND) {
+      return (price * quantity) - fees;
+    }
+    return price * quantity;
+  };
+
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50 animate-fade-in">
       <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg overflow-hidden">
@@ -250,6 +268,25 @@ const TransactionForm: React.FC<Props> = ({ accounts, onAdd, onUpdate, onClose, 
               className="mt-1 w-full border border-slate-300 rounded-md p-2"
             />
           </div>
+
+          {/* 計算金額預覽 */}
+          {formData.price && formData.quantity && (
+            <div className="bg-slate-50 p-3 rounded-md border border-slate-200">
+              <div className="text-xs text-slate-600 mb-1">計算金額預覽：</div>
+              <div className="text-lg font-bold text-slate-800">
+                {calculatePreviewAmount().toFixed(2)}
+                <span className="text-xs text-slate-500 ml-2">
+                  ({formData.market === Market.TW ? 'TWD' : formData.market === Market.JP ? 'JPY' : 'USD'})
+                </span>
+              </div>
+              <div className="text-xs text-slate-500 mt-1">
+                計算公式：{formData.price} × {formData.quantity} 
+                {formData.market === Market.TW ? ' (台股向下取整)' : ''} 
+                {formData.type === TransactionType.BUY ? ' + ' : formData.type === TransactionType.SELL ? ' - ' : ''}
+                {formData.fees || 0} (手續費)
+              </div>
+            </div>
+          )}
 
           <div className="pt-4 flex gap-3">
              <button 
