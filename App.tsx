@@ -1548,6 +1548,7 @@ const App: React.FC = () => {
       {isFormOpen && (
         <TransactionForm 
           accounts={accounts} 
+          holdings={holdings}
           onAdd={addTransaction}
           onUpdate={updateTransaction}
           editingTransaction={transactionToEdit}
