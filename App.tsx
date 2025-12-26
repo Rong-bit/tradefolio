@@ -1403,22 +1403,36 @@ const App: React.FC = () => {
                               {(record as any).fees > 0 ? formatNumber((record as any).fees) : '-'}
                             </td>
                              <td className="px-2 sm:px-4 py-2 sm:py-3 text-right font-bold font-mono text-slate-700 text-xs sm:text-sm">
-                               {record.amount % 1 === 0 ? record.amount.toString() : record.amount.toFixed(2)}
-                               <div className="md:hidden mt-0.5">
-                                 <span className={`text-[10px] font-normal ${
-                                   (record as any).balance >= 0 ? 'text-green-600' : 'text-red-600'
-                                 }`}>
-                                   {(record as any).balance?.toFixed(2) || '0.00'}
-                                 </span>
-                               </div>
-                             </td>
-                             <td className="px-2 sm:px-4 py-2 sm:py-3 text-right hidden md:table-cell">
-                                <div className="flex flex-col items-end">
-                                  <span className={`font-medium text-xs sm:text-sm ${
-                                    (record as any).balance >= 0 ? 'text-green-600' : 'text-red-600'
-                                  }`}>
-                                    {(record as any).balance?.toFixed(2) || '0.00'}
-                                  </span>
+                              {record.amount % 1 === 0 ? record.amount.toString() : record.amount.toFixed(2)}
+                              <div className="md:hidden mt-0.5">
+                                {(() => {
+                                  const bal = (record as any).balance || 0;
+                                  const absBal = Math.abs(bal);
+                                  const displayBal = absBal < 0.01 ? 0 : bal;
+                                  return (
+                                    <span className={`text-[10px] font-normal ${
+                                      displayBal >= 0 ? 'text-green-600' : 'text-red-600'
+                                    }`}>
+                                      {absBal < 0.01 ? '0.00' : bal.toFixed(2)}
+                                    </span>
+                                  );
+                                })()}
+                              </div>
+                            </td>
+                            <td className="px-2 sm:px-4 py-2 sm:py-3 text-right hidden md:table-cell">
+                               <div className="flex flex-col items-end">
+                                 {(() => {
+                                   const bal = (record as any).balance || 0;
+                                   const absBal = Math.abs(bal);
+                                   const displayBal = absBal < 0.01 ? 0 : bal;
+                                   return (
+                                     <span className={`font-medium text-xs sm:text-sm ${
+                                       displayBal >= 0 ? 'text-green-600' : 'text-red-600'
+                                     }`}>
+                                       {absBal < 0.01 ? '0.00' : bal.toFixed(2)}
+                                     </span>
+                                   );
+                                 })()}
                                   <span className="text-[10px] text-slate-400">
                                     {accounts.find(a => a.id === record.accountId)?.currency || 'TWD'}
                                   </span>
