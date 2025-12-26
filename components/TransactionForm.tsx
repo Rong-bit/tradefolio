@@ -189,11 +189,11 @@ const TransactionForm: React.FC<Props> = ({ accounts, holdings = [], onAdd, onUp
           return fee < 20 ? 20 : fee;
         }
       } else if (formData.type === TransactionType.SELL) {
-        // 賣出：手續費 = 交易金額 × 0.001425 × 0.6（四捨五入）+ 交易稅 = 交易金額 × 0.30%
+        // 賣出：手續費 = 交易金額 × 0.001425 × 0.28（四捨五入）+ 交易稅 = 交易金額 × 0.1%（向下取整）
         let baseAmount = price * quantity;
         baseAmount = Math.floor(baseAmount); // 台股先向下取整
-        let commission = Math.round(baseAmount * 0.001425 * 0.6);
-        let tax = Math.round(baseAmount * 0.003); // 0.30% = 0.003
+        let commission = Math.round(baseAmount * 0.001425 * 0.28);
+        let tax = Math.floor(baseAmount * 0.001); // 0.1% = 0.001，向下取整
         return commission + tax;
       }
     } else if (formData.market === Market.US) {
@@ -408,7 +408,7 @@ const TransactionForm: React.FC<Props> = ({ accounts, holdings = [], onAdd, onUp
                     <div className="mt-0.5 text-slate-400">單筆買入：交易金額 × 0.1425% × 60% (最低20元)</div>
                   )}
                   {formData.market === Market.TW && formData.type === TransactionType.SELL && (
-                    <div className="mt-0.5 text-slate-400">賣出：手續費(交易金額×0.1425%×60%) + 交易稅(0.3%)</div>
+                    <div className="mt-0.5 text-slate-400">賣出：手續費(交易金額×0.1425%×28%) + 交易稅(0.1%，向下取整)</div>
                   )}
                   {formData.market === Market.TW && formData.type === TransactionType.BUY && formData.isRegularInvestment && (
                     <div className="mt-0.5 text-slate-400">定期定額：固定1元</div>
