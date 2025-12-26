@@ -181,9 +181,18 @@ const BatchImportModal: React.FC<Props> = ({ accounts, onImport, onClose }) => {
             const actionVal = cols[actionIdx !== -1 ? actionIdx : 1];
             const actionLower = actionVal.toLowerCase();
 
+            // 跳過不需要解析的 Action 類型
+            // 注意：只跳過 "Reinvest Dividend"（完整字串），"Reinvest Shares" 會被解析為 DIVIDEND
+            if (actionLower.includes('reinvest dividend') || actionLower.includes('nra tax adj')) {
+                return; // 直接跳過，不計入失敗數
+            }
+
             if (actionLower.includes('buy')) type = TransactionType.BUY;
             else if (actionLower.includes('sell')) type = TransactionType.SELL;
-            else if (actionLower.includes('reinvest')) type = TransactionType.DIVIDEND;
+            else if (actionLower.includes('reinvest')) {
+                // "Reinvest Shares" 會被解析為 DIVIDEND 類型
+                type = TransactionType.DIVIDEND;
+            }
             else if (actionLower.includes('cash dividend') || actionLower.includes('qual div')) {
                 type = TransactionType.CASH_DIVIDEND;
                 amountVal = parseNumber(cols[amountIdx !== -1 ? amountIdx : 7]);
@@ -218,6 +227,13 @@ const BatchImportModal: React.FC<Props> = ({ accounts, onImport, onClose }) => {
 
             dateVal = parseDate(cols[0]);
             const typeStr = cols[1];
+            const typeStrLower = typeStr.toLowerCase();
+            
+            // 跳過不需要解析的 Action 類型
+            if (typeStrLower.includes('reinvest dividend') || typeStrLower.includes('nra tax adj')) {
+                return; // 直接跳過，不計入失敗數
+            }
+            
             tickerVal = cols[2] || '';
             priceVal = cols.length > 3 && cols[3] ? parseNumber(cols[3]) : 0;
             const rawQty = cols.length > 4 && cols[4] ? parseNumber(cols[4]) : 0;
@@ -226,7 +242,7 @@ const BatchImportModal: React.FC<Props> = ({ accounts, onImport, onClose }) => {
             amountVal = cols.length > 6 && cols[6] ? parseNumber(cols[6]) : 0;
             
             // Map Chinese / English Types
-            if (typeStr.includes('買') || typeStr.toLowerCase() === 'buy') type = TransactionType.BUY;
+            if (typeStr.includes('買') || typeStrLower === 'buy') type = TransactionType.BUY;
             else if (typeStr.includes('賣') || typeStr.toLowerCase() === 'sell') type = TransactionType.SELL;
             
             // --- New Logic for Transfer (嘉信/Schwab 格式) ---
