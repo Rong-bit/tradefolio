@@ -489,13 +489,16 @@ export const generateAdvancedChartData = (
 };
 
 export const formatCurrency = (val: number, currency: string): string => {
+  // 將 -0 或接近 0 的值轉換為 0，避免顯示 "-0" 或 "-$0.00"
+  const normalizedVal = Math.abs(val) < 0.0001 ? 0 : val;
+  
   try {
     if (!currency || currency.trim() === '' || currency.length !== 3) {
       return new Intl.NumberFormat('zh-TW', {
         style: 'decimal',
         minimumFractionDigits: 0,
         maximumFractionDigits: 2,
-      }).format(val);
+      }).format(normalizedVal);
     }
 
     // Hybrid Strategy:
@@ -508,9 +511,9 @@ export const formatCurrency = (val: number, currency: string): string => {
       currency: currency,
       minimumFractionDigits: isUSD ? 2 : 0,
       maximumFractionDigits: isUSD ? 2 : 0,
-    }).format(val);
+    }).format(normalizedVal);
   } catch (error) {
-    return val.toLocaleString();
+    return normalizedVal.toLocaleString();
   }
 };
 
