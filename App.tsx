@@ -77,9 +77,13 @@ const App: React.FC = () => {
   const [isCashFlowDeleteConfirmOpen, setIsCashFlowDeleteConfirmOpen] = useState(false);
   const [isHistoricalModalOpen, setIsHistoricalModalOpen] = useState(false);
   const [isBatchUpdateMarketOpen, setIsBatchUpdateMarketOpen] = useState(false);
+  const [isClearTickerConfirmOpen, setIsClearTickerConfirmOpen] = useState(false);
+  const [isClearAccountConfirmOpen, setIsClearAccountConfirmOpen] = useState(false);
   const [transactionToDelete, setTransactionToDelete] = useState<string | null>(null);
   const [transactionToEdit, setTransactionToEdit] = useState<Transaction | null>(null);
   const [cashFlowToDelete, setCashFlowToDelete] = useState<string | null>(null);
+  const [tickerToClear, setTickerToClear] = useState<{ ticker: string; market: Market } | null>(null);
+  const [accountToClear, setAccountToClear] = useState<string | null>(null);
   const [alertDialog, setAlertDialog] = useState<{isOpen: boolean, title: string, message: string, type: 'info' | 'success' | 'error'}>({
     isOpen: false, title: '', message: '', type: 'info'
   });
@@ -301,6 +305,46 @@ const App: React.FC = () => {
     setTimeout(() => showAlert(`✅ 成功清空 ${count} 筆交易紀錄！`, "刪除成功", "success"), 100);
   };
   const cancelDeleteAllTransactions = () => setIsDeleteConfirmOpen(false);
+  
+  const handleClearTickerTransactions = (ticker: string, market: Market) => {
+    setTickerToClear({ ticker, market });
+    setIsClearTickerConfirmOpen(true);
+  };
+  const confirmClearTickerTransactions = () => {
+    if (tickerToClear) {
+      const { ticker, market } = tickerToClear;
+      const filtered = transactions.filter(tx => !(tx.ticker === ticker && tx.market === market));
+      const count = transactions.length - filtered.length;
+      setTransactions(filtered);
+      setIsClearTickerConfirmOpen(false);
+      setTickerToClear(null);
+      setTimeout(() => showAlert(`✅ 成功清空 ${count} 筆「${market}-${ticker}」的交易紀錄！`, "刪除成功", "success"), 100);
+    }
+  };
+  const cancelClearTickerTransactions = () => {
+    setIsClearTickerConfirmOpen(false);
+    setTickerToClear(null);
+  };
+  
+  const handleClearAccountTransactions = (accountId: string) => {
+    setAccountToClear(accountId);
+    setIsClearAccountConfirmOpen(true);
+  };
+  const confirmClearAccountTransactions = () => {
+    if (accountToClear) {
+      const accountName = accounts.find(a => a.id === accountToClear)?.name || accountToClear;
+      const filtered = transactions.filter(tx => tx.accountId !== accountToClear);
+      const count = transactions.length - filtered.length;
+      setTransactions(filtered);
+      setIsClearAccountConfirmOpen(false);
+      setAccountToClear(null);
+      setTimeout(() => showAlert(`✅ 成功清空帳戶「${accountName}」的 ${count} 筆交易紀錄！`, "刪除成功", "success"), 100);
+    }
+  };
+  const cancelClearAccountTransactions = () => {
+    setIsClearAccountConfirmOpen(false);
+    setAccountToClear(null);
+  };
   
   const addAccount = (acc: Account) => setAccounts(prev => [...prev, acc]);
   const updateAccount = (acc: Account) => {
@@ -1188,9 +1232,20 @@ const App: React.FC = () => {
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                     {/* 帳戶篩選 */}
                     <div>
-                      <label className="block text-sm font-medium text-slate-700 mb-2">
-                        {t(language).history.accountFilter}
-                      </label>
+                      <div className="flex items-center justify-between mb-2">
+                        <label className="block text-sm font-medium text-slate-700">
+                          {t(language).history.accountFilter}
+                        </label>
+                        {filterAccount && (
+                          <button
+                            onClick={() => handleClearAccountTransactions(filterAccount)}
+                            className="text-xs text-red-600 hover:text-red-800 underline"
+                            title={language === 'zh-TW' ? '清空此帳戶的所有交易' : 'Clear all transactions for this account'}
+                          >
+                            {language === 'zh-TW' ? '清空此帳戶' : 'Clear'}
+                          </button>
+                        )}
+                      </div>
                       <select
                         value={filterAccount}
                         onChange={(e) => setFilterAccount(e.target.value)}
@@ -1288,6 +1343,29 @@ const App: React.FC = () => {
                     
                     {/* 快速篩選按鈕 */}
                     <div className="flex gap-2">
+                      {/* 清空當前篩選證券交易按鈕 */}
+                      {(() => {
+                        // 計算篩選結果中的唯一證券（只包含交易記錄）
+                        const uniqueSecurities = new Set<string>();
+                        filteredRecords.forEach(record => {
+                          if (record.type === 'TRANSACTION') {
+                            uniqueSecurities.add(`${record.market}-${record.ticker}`);
+                          }
+                        });
+                        // 如果只有一個唯一的證券，顯示清空按鈕
+                        if (uniqueSecurities.size === 1) {
+                          const [market, ticker] = Array.from(uniqueSecurities)[0].split('-');
+                          return (
+                            <button
+                              onClick={() => handleClearTickerTransactions(ticker, market as Market)}
+                              className="px-3 py-1 text-xs bg-red-100 text-red-700 rounded-full hover:bg-red-200 transition"
+                            >
+                              {language === 'zh-TW' ? `清空 ${market}-${ticker} 交易` : `Clear ${market}-${ticker}`}
+                            </button>
+                          );
+                        }
+                        return null;
+                      })()}
                       <button
                         onClick={() => {
                           const thirtyDaysAgo = new Date();
@@ -1608,6 +1686,49 @@ const App: React.FC = () => {
            </div>
         </div>
       )}
+      {isClearTickerConfirmOpen && tickerToClear && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black bg-opacity-50 animate-fade-in">
+           <div className="bg-white rounded-lg shadow-xl p-6 max-w-sm">
+              <h3 className="text-lg font-bold text-red-600 mb-2">
+                {language === 'zh-TW' ? `確認清空「${tickerToClear.market}-${tickerToClear.ticker}」的所有交易？` : `Confirm clear all transactions for ${tickerToClear.market}-${tickerToClear.ticker}?`}
+              </h3>
+              <p className="text-slate-600 mb-6">
+                {language === 'zh-TW' ? '此操作無法復原，請確認您已備份資料。' : 'This operation cannot be undone. Please make sure you have backed up your data.'}
+              </p>
+              <div className="flex justify-end gap-3">
+                 <button onClick={cancelClearTickerTransactions} className="px-4 py-2 rounded border hover:bg-slate-50">
+                   {language === 'zh-TW' ? '取消' : 'Cancel'}
+                 </button>
+                 <button onClick={confirmClearTickerTransactions} className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700">
+                   {language === 'zh-TW' ? '確認清空' : 'Confirm Clear'}
+                 </button>
+              </div>
+           </div>
+        </div>
+      )}
+      {isClearAccountConfirmOpen && accountToClear && (() => {
+        const accountName = accounts.find(a => a.id === accountToClear)?.name || accountToClear;
+        return (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black bg-opacity-50 animate-fade-in">
+             <div className="bg-white rounded-lg shadow-xl p-6 max-w-sm">
+                <h3 className="text-lg font-bold text-red-600 mb-2">
+                  {language === 'zh-TW' ? `確認清空帳戶「${accountName}」的所有交易？` : `Confirm clear all transactions for account "${accountName}"?`}
+                </h3>
+                <p className="text-slate-600 mb-6">
+                  {language === 'zh-TW' ? '此操作無法復原，請確認您已備份資料。' : 'This operation cannot be undone. Please make sure you have backed up your data.'}
+                </p>
+                <div className="flex justify-end gap-3">
+                   <button onClick={cancelClearAccountTransactions} className="px-4 py-2 rounded border hover:bg-slate-50">
+                     {language === 'zh-TW' ? '取消' : 'Cancel'}
+                   </button>
+                   <button onClick={confirmClearAccountTransactions} className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700">
+                     {language === 'zh-TW' ? '確認清空' : 'Confirm Clear'}
+                   </button>
+                </div>
+             </div>
+          </div>
+        );
+      })()}
       {isTransactionDeleteConfirmOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black bg-opacity-50 animate-fade-in">
            <div className="bg-white rounded-lg shadow-xl p-6 max-w-sm">
