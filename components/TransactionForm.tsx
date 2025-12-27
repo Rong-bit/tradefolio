@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { Market, Transaction, TransactionType, Account, Holding } from '../types';
+import { Market, Transaction, TransactionType, Account, Holding, CashFlowCategory } from '../types';
 import { v4 as uuidv4 } from 'uuid';
 
 interface Props {
@@ -24,7 +24,8 @@ const TransactionForm: React.FC<Props> = ({ accounts, holdings = [], onAdd, onUp
     quantity: '',
     fees: '0',
     accountId: accounts[0]?.id || '',
-    note: ''
+    note: '',
+    category: CashFlowCategory.INVESTMENT
   });
 
   // 當進入編輯模式時，載入現有交易資料
@@ -39,7 +40,8 @@ const TransactionForm: React.FC<Props> = ({ accounts, holdings = [], onAdd, onUp
         quantity: editingTransaction.quantity.toString(),
         fees: editingTransaction.fees.toString(),
         accountId: editingTransaction.accountId,
-        note: editingTransaction.note || ''
+        note: editingTransaction.note || '',
+        category: editingTransaction.category || CashFlowCategory.INVESTMENT
       });
     } else {
       // 重置為預設值
@@ -52,7 +54,8 @@ const TransactionForm: React.FC<Props> = ({ accounts, holdings = [], onAdd, onUp
         quantity: '',
         fees: '0',
         accountId: accounts[0]?.id || '',
-        note: ''
+        note: '',
+        category: CashFlowCategory.INVESTMENT
       });
     }
   }, [editingTransaction, accounts]);
@@ -110,7 +113,8 @@ const TransactionForm: React.FC<Props> = ({ accounts, holdings = [], onAdd, onUp
       fees: fees,
       accountId: formData.accountId,
       note: formData.note,
-      amount: finalAmount // 儲存計算後的總金額
+      amount: finalAmount, // 儲存計算後的總金額
+      category: formData.category
     };
     
     if (isEditing) {
@@ -287,13 +291,30 @@ const TransactionForm: React.FC<Props> = ({ accounts, holdings = [], onAdd, onUp
             </div>
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-slate-700">備註</label>
-            <input 
-              type="text" name="note"
-              value={formData.note} onChange={handleChange}
-              className="mt-1 w-full border border-slate-300 rounded-md p-2"
-            />
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-slate-700">用途類別</label>
+              <select 
+                name="category" 
+                value={formData.category} onChange={handleChange}
+                className="mt-1 w-full border border-slate-300 rounded-md p-2"
+              >
+                <option value={CashFlowCategory.INVESTMENT}>投資</option>
+                <option value={CashFlowCategory.EDUCATION}>教育資金</option>
+                <option value={CashFlowCategory.TRAVEL}>旅遊</option>
+                <option value={CashFlowCategory.LIVING}>生活費</option>
+                <option value={CashFlowCategory.EMERGENCY}>緊急預備金</option>
+                <option value={CashFlowCategory.OTHER}>其他</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-700">備註</label>
+              <input 
+                type="text" name="note"
+                value={formData.note} onChange={handleChange}
+                className="mt-1 w-full border border-slate-300 rounded-md p-2"
+              />
+            </div>
           </div>
 
           {/* 計算金額預覽 */}
