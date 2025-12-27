@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { Account, CashFlow, CashFlowType, CashFlowCategory, Currency } from '../types';
+import { Account, CashFlow, CashFlowType, Currency } from '../types';
 import { v4 as uuidv4 } from 'uuid';
 import { formatCurrency } from '../utils/calculations';
 import BatchCashFlowModal from './BatchCashFlowModal';
@@ -40,7 +40,6 @@ const FundManager: React.FC<Props> = ({
   const [targetAccountId, setTargetAccountId] = useState('');
   const [exchangeRate, setExchangeRate] = useState('');
   const [note, setNote] = useState('');
-  const [category, setCategory] = useState<CashFlowCategory>(CashFlowCategory.INVESTMENT);
   
   // UI State
   const [isFormOpen, setIsFormOpen] = useState(false);
@@ -72,7 +71,6 @@ const FundManager: React.FC<Props> = ({
       setTargetAccountId(editingCashFlow.targetAccountId || '');
       setExchangeRate(editingCashFlow.exchangeRate?.toString() || '');
       setNote(editingCashFlow.note || '');
-      setCategory(editingCashFlow.category || CashFlowCategory.INVESTMENT);
     } else {
       // 重置為預設值
       setType(CashFlowType.DEPOSIT);
@@ -83,7 +81,6 @@ const FundManager: React.FC<Props> = ({
       setTargetAccountId('');
       setExchangeRate('');
       setNote('');
-      setCategory(CashFlowCategory.INVESTMENT);
     }
   }, [editingCashFlow, accounts]);
 
@@ -154,8 +151,7 @@ const FundManager: React.FC<Props> = ({
       accountId,
       targetAccountId: type === CashFlowType.TRANSFER ? targetAccountId : undefined,
       exchangeRate: numRate,
-      note,
-      category
+      note
     };
 
     if (editingCashFlow && onUpdate) {
@@ -168,7 +164,6 @@ const FundManager: React.FC<Props> = ({
     setAmount('');
     setFee('');
     setNote('');
-    setCategory(CashFlowCategory.INVESTMENT);
     setEditingCashFlow(null);
     setIsFormOpen(false); // Close Modal
   };
@@ -180,19 +175,6 @@ const FundManager: React.FC<Props> = ({
       case CashFlowType.TRANSFER: return t(language).funds.transfer;
       case CashFlowType.INTEREST: return t(language).funds.interest;
       default: return type;
-    }
-  };
-
-  const getCategoryName = (category?: CashFlowCategory) => {
-    if (!category) return language === 'en' ? 'Investment' : '投資';
-    switch (category) {
-      case CashFlowCategory.INVESTMENT: return language === 'en' ? 'Investment' : '投資';
-      case CashFlowCategory.EDUCATION: return language === 'en' ? 'Education' : '教育資金';
-      case CashFlowCategory.TRAVEL: return language === 'en' ? 'Travel' : '旅遊';
-      case CashFlowCategory.LIVING: return language === 'en' ? 'Living' : '生活費';
-      case CashFlowCategory.EMERGENCY: return language === 'en' ? 'Emergency' : '緊急預備金';
-      case CashFlowCategory.OTHER: return language === 'en' ? 'Other' : '其他';
-      default: return language === 'en' ? 'Investment' : '投資';
     }
   };
 
@@ -464,11 +446,6 @@ const FundManager: React.FC<Props> = ({
                                 cf.type === CashFlowType.WITHDRAW ? 'bg-red-100 text-red-700' : 'bg-blue-100 text-blue-700'}`}>
                              {getTypeName(cf.type)}
                            </span>
-                           {cf.category && (
-                             <span className="inline-block px-1.5 py-0.5 rounded text-[10px] font-medium bg-purple-100 text-purple-700">
-                               {getCategoryName(cf.category)}
-                             </span>
-                           )}
                            {cf.note && (
                              <span className="text-xs text-slate-500">{cf.note.replace(/\(手續費:.*?\)/, '').trim()}</span>
                            )}
@@ -528,17 +505,6 @@ const FundManager: React.FC<Props> = ({
                       </select>
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-slate-700">用途類別</label>
-                      <select value={category} onChange={e => setCategory(e.target.value as CashFlowCategory)} className="mt-1 w-full border border-slate-300 rounded p-2">
-                        <option value={CashFlowCategory.INVESTMENT}>投資</option>
-                        <option value={CashFlowCategory.EDUCATION}>教育資金</option>
-                        <option value={CashFlowCategory.TRAVEL}>旅遊</option>
-                        <option value={CashFlowCategory.LIVING}>生活費</option>
-                        <option value={CashFlowCategory.EMERGENCY}>緊急預備金</option>
-                        <option value={CashFlowCategory.OTHER}>其他</option>
-                      </select>
-                    </div>
-                     <div>
                       <label className="block text-sm font-medium text-slate-700">
                         {type === CashFlowType.TRANSFER ? '來源帳戶' : '帳戶'}
                       </label>
