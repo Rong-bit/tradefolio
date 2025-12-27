@@ -5,7 +5,6 @@ import {
   ChartDataPoint, 
   Currency, 
   CashFlowType, 
-  CashFlowCategory,
   Holding, 
   AssetAllocationItem, 
   Market, 
@@ -22,7 +21,6 @@ export const calculateHoldings = (
 ): Holding[] => {
   const map = new Map<string, Holding>();
   const flowsMap = new Map<string, { amount: number, date: number }[]>();
-  const categoryMap = new Map<string, CashFlowCategory>(); // 儲存每個持倉的最後一次買入類別
   const sortedTx = [...transactions].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
   sortedTx.forEach(tx => {
@@ -60,16 +58,11 @@ export const calculateHoldings = (
        const txCost = tx.amount !== undefined ? tx.amount : (baseVal + (tx.fees || 0));
        const newTotalCost = h.totalCost + txCost;
        const newQty = h.quantity + tx.quantity;
-       h.avgCost = newQty > 0 ? newTotalCost / newQty : 0;
-       h.totalCost = newTotalCost;
-       h.quantity = newQty;
-       
-       // 更新類別：使用最後一次買入交易的類別
-       if (tx.type === TransactionType.BUY && tx.category) {
-         categoryMap.set(key, tx.category);
-       }
-       
-       const flowDate = new Date(tx.date).getTime();
+      h.avgCost = newQty > 0 ? newTotalCost / newQty : 0;
+      h.totalCost = newTotalCost;
+      h.quantity = newQty;
+      
+      const flowDate = new Date(tx.date).getTime();
        if (tx.type === TransactionType.BUY) {
           flows.push({ amount: -txCost, date: flowDate });
        } else if (tx.type === TransactionType.TRANSFER_IN) {
@@ -131,9 +124,6 @@ export const calculateHoldings = (
       const dailyChange = details !== undefined ? (details.change !== undefined ? details.change : 0) : undefined;
       const dailyChangePercent = details !== undefined ? (details.changePercent !== undefined ? details.changePercent : 0) : undefined;
 
-      // 取得該持倉的類別
-      const category = categoryMap.get(`${h.accountId}-${h.ticker}`);
-
       return { 
         ...h, 
         currentPrice, 
@@ -142,8 +132,7 @@ export const calculateHoldings = (
         unrealizedPLPercent, 
         annualizedReturn,
         dailyChange,
-        dailyChangePercent,
-        category
+        dailyChangePercent
       };
     });
 };
