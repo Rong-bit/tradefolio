@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { ChartDataPoint, PortfolioSummary, Holding, AssetAllocationItem, AnnualPerformanceItem, AccountPerformance, CashFlow, Account, CashFlowType, Currency } from '../types';
+import { ChartDataPoint, PortfolioSummary, Holding, AssetAllocationItem, AnnualPerformanceItem, AccountPerformance, CashFlow, Account, CashFlowType, CashFlowCategory, Currency } from '../types';
 import { formatCurrency } from '../utils/calculations';
 import { ComposedChart, Line, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, PieChart, Pie, Cell } from 'recharts';
 import { analyzePortfolio } from '../services/geminiService';
@@ -46,6 +46,74 @@ const Dashboard: React.FC<Props> = ({
   const [showCostDetailModal, setShowCostDetailModal] = useState(false);
   const [showAccountInUSD, setShowAccountInUSD] = useState(false); // 證券戶列表切換顯示幣種：false=台幣, true=美金
   const [showAnnualInUSD, setShowAnnualInUSD] = useState(false); // 年度績效表切換顯示幣種：false=台幣, true=美金
+
+  // 計算各類別的資金總額
+  const categoryData = useMemo(() => {
+    const categoryMap = new Map<CashFlowCategory, number>();
+    
+    cashFlows.forEach(cf => {
+      if (cf.type === CashFlowType.DEPOSIT || cf.type === CashFlowType.WITHDRAW) {
+        const category = cf.category || CashFlowCategory.INVESTMENT;
+        const account = accounts.find(a => a.id === cf.accountId);
+        
+        let amountTWD = 0;
+        if (cf.amountTWD && cf.amountTWD > 0) {
+          amountTWD = cf.amountTWD;
+        } else {
+          const rate = cf.exchangeRate || (account?.currency === Currency.USD ? summary.exchangeRateUsdToTwd : 
+            (account?.currency === Currency.JPY ? (summary.jpyExchangeRate || 0.21) : 1));
+          amountTWD = cf.amount * rate;
+        }
+        
+        const current = categoryMap.get(category) || 0;
+        if (cf.type === CashFlowType.DEPOSIT) {
+          categoryMap.set(category, current + amountTWD);
+        } else {
+          categoryMap.set(category, current - amountTWD);
+        }
+      }
+    });
+    
+    const categories = [
+      CashFlowCategory.INVESTMENT,
+      CashFlowCategory.EDUCATION,
+      CashFlowCategory.TRAVEL,
+      CashFlowCategory.LIVING,
+      CashFlowCategory.EMERGENCY,
+      CashFlowCategory.OTHER
+    ];
+    
+    const colors = [
+      '#3b82f6', // 投資 - 藍色
+      '#10b981', // 教育 - 綠色
+      '#f59e0b', // 旅遊 - 橙色
+      '#ef4444', // 生活費 - 紅色
+      '#8b5cf6', // 緊急預備金 - 紫色
+      '#6b7280'  // 其他 - 灰色
+    ];
+    
+    const categoryNames = {
+      [CashFlowCategory.INVESTMENT]: language === 'en' ? 'Investment' : '投資',
+      [CashFlowCategory.EDUCATION]: language === 'en' ? 'Education' : '教育資金',
+      [CashFlowCategory.TRAVEL]: language === 'en' ? 'Travel' : '旅遊',
+      [CashFlowCategory.LIVING]: language === 'en' ? 'Living' : '生活費',
+      [CashFlowCategory.EMERGENCY]: language === 'en' ? 'Emergency' : '緊急預備金',
+      [CashFlowCategory.OTHER]: language === 'en' ? 'Other' : '其他'
+    };
+    
+    const data = categories.map((cat, idx) => {
+      const value = categoryMap.get(cat) || 0;
+      const total = Array.from(categoryMap.values()).reduce((sum, v) => sum + Math.abs(v), 0);
+      return {
+        name: categoryNames[cat],
+        value: Math.abs(value),
+        ratio: total > 0 ? (Math.abs(value) / total) * 100 : 0,
+        color: colors[idx]
+      };
+    }).filter(item => item.value > 0);
+    
+    return data;
+  }, [cashFlows, accounts, summary.exchangeRateUsdToTwd, summary.jpyExchangeRate, language]);
 
   useEffect(() => {
     // 確保組件完全掛載，防止 hydration 錯誤
@@ -346,6 +414,51 @@ const Dashboard: React.FC<Props> = ({
                 </div>
               )}
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Category Allocation Pie Charts - Only shown if NOT guest */}
+      {!isGuest && categoryData.length > 0 && (
+        <div className="bg-white p-6 rounded-xl shadow overflow-hidden">
+          <h3 className="font-bold text-slate-800 text-lg mb-4">{language === 'en' ? 'Fund Category Allocation' : '資金用途分類'}</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {categoryData.map((category, idx) => (
+              <div key={idx} className="flex flex-col items-center">
+                <h4 className="text-sm font-semibold text-slate-700 mb-2">{category.name}</h4>
+                <div className="w-full max-w-xs aspect-square">
+                  {isMounted ? (
+                    <ResponsiveContainer width="100%" height="100%">
+                      <PieChart>
+                        <Pie
+                          data={[category]}
+                          cx="50%"
+                          cy="50%"
+                          innerRadius={60}
+                          outerRadius={100}
+                          dataKey="value"
+                          startAngle={90}
+                          endAngle={-270}
+                        >
+                          <Cell fill={category.color} />
+                        </Pie>
+                        <Tooltip 
+                          formatter={(value: number) => formatCurrency(value, 'TWD')}
+                        />
+                      </PieChart>
+                    </ResponsiveContainer>
+                  ) : (
+                    <div className="h-full flex items-center justify-center text-slate-400">
+                      {translations.dashboard.chartLoading}
+                    </div>
+                  )}
+                </div>
+                <div className="mt-2 text-center">
+                  <p className="text-lg font-bold text-slate-800">{formatCurrency(category.value, 'TWD')}</p>
+                  <p className="text-xs text-slate-500">{category.ratio.toFixed(1)}%</p>
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       )}
