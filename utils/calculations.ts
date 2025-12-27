@@ -5,6 +5,7 @@ import {
   ChartDataPoint, 
   Currency, 
   CashFlowType, 
+  CashFlowCategory,
   Holding, 
   AssetAllocationItem, 
   Market, 
@@ -21,10 +22,15 @@ export const calculateHoldings = (
 ): Holding[] => {
   const map = new Map<string, Holding>();
   const flowsMap = new Map<string, { amount: number, date: number }[]>();
+  const categoryMap = new Map<string, CashFlowCategory>(); // 追蹤每個 holding 的 category
   const sortedTx = [...transactions].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
   sortedTx.forEach(tx => {
      const key = `${tx.accountId}-${tx.ticker}`;
+     // 如果有 category，記錄下來（以最後一筆交易的 category 為準，或可以改為優先使用）
+     if (tx.category) {
+       categoryMap.set(key, tx.category);
+     }
      if (!map.has(key)) {
        map.set(key, {
          ticker: tx.ticker,
@@ -39,7 +45,8 @@ export const calculateHoldings = (
          accountId: tx.accountId,
          weight: 0,
          annualizedReturn: 0,
-         firstBuyDate: tx.date
+         firstBuyDate: tx.date,
+         category: tx.category // 初始化時設置 category
        });
      }
      
@@ -132,7 +139,8 @@ export const calculateHoldings = (
         unrealizedPLPercent, 
         annualizedReturn,
         dailyChange,
-        dailyChangePercent
+        dailyChangePercent,
+        category: categoryMap.get(`${h.accountId}-${h.ticker}`) || h.category // 使用記錄的 category 或保留原有的
       };
     });
 };
@@ -805,4 +813,159 @@ export const calculateXIRR = (
   xirrFlows.push({ amount: currentTotalValueTWD, date: Date.now() });
 
   return calculateGenericXIRR(xirrFlows);
+};
+
+// 分層總資產結構：類別 -> 帳戶 -> 股債組成
+export interface CategoryAccountBreakdown {
+  category: CashFlowCategory | 'UNCATEGORIZED';
+  categoryName: string;
+  totalValue: number;
+  accounts: AccountBreakdown[];
+}
+
+export interface AccountBreakdown {
+  accountId: string;
+  accountName: string;
+  currency: Currency;
+  totalValue: number;
+  stocks: number; // 股票價值
+  cash: number; // 現金價值
+}
+
+export const calculateAssetsByCategoryAndAccount = (
+  holdings: Holding[],
+  accounts: Account[],
+  cashBalanceTWD: number,
+  exchangeRate: number,
+  jpyExchangeRate?: number
+): CategoryAccountBreakdown[] => {
+  // 1. 先按類別和帳戶組織股票
+  const categoryAccountMap = new Map<string, Map<string, number>>(); // category -> accountId -> stock value TWD
+  let totalStockValueTWD = 0;
+
+  holdings.forEach(h => {
+    // 計算股票價值（TWD）
+    let valTWD: number;
+    if (h.market === Market.US || h.market === Market.UK) {
+      valTWD = h.currentValue * exchangeRate;
+    } else if (h.market === Market.JP) {
+      valTWD = jpyExchangeRate ? h.currentValue * jpyExchangeRate : h.currentValue * exchangeRate;
+    } else {
+      valTWD = h.currentValue;
+    }
+
+    const category = h.category || 'UNCATEGORIZED';
+    if (!categoryAccountMap.has(category)) {
+      categoryAccountMap.set(category, new Map());
+    }
+    const accountMap = categoryAccountMap.get(category)!;
+    const currentValue = accountMap.get(h.accountId) || 0;
+    accountMap.set(h.accountId, currentValue + valTWD);
+    totalStockValueTWD += valTWD;
+  });
+
+  // 2. 組織現金（按帳戶）
+  const accountCashMap = new Map<string, number>(); // accountId -> cash TWD
+  accounts.forEach(acc => {
+    const isUSD = acc.currency === Currency.USD;
+    const isJPY = acc.currency === Currency.JPY;
+    const rate = isUSD ? exchangeRate : (isJPY ? (jpyExchangeRate || exchangeRate) : 1);
+    const cashTWD = acc.balance * rate;
+    accountCashMap.set(acc.id, cashTWD);
+  });
+
+  // 3. 構建結果結構
+  const result: CategoryAccountBreakdown[] = [];
+  const categoryNames: Record<string, string> = {
+    'INVESTMENT': '投資',
+    'EDUCATION': '教育資金',
+    'TRAVEL': '旅遊',
+    'LIVING': '生活費',
+    'EMERGENCY': '緊急預備金',
+    'OTHER': '其他',
+    'UNCATEGORIZED': '未分類'
+  };
+
+  // 處理有股票的類別（現金也分配到對應類別的帳戶中）
+  categoryAccountMap.forEach((accountMap, category) => {
+    const accountBreakdowns: AccountBreakdown[] = [];
+    let categoryTotal = 0;
+
+    accountMap.forEach((stockValue, accountId) => {
+      const account = accounts.find(a => a.id === accountId);
+      if (!account) return;
+
+      const cashValue = accountCashMap.get(accountId) || 0;
+      const accountTotal = stockValue + cashValue;
+      categoryTotal += accountTotal;
+
+      accountBreakdowns.push({
+        accountId: account.id,
+        accountName: account.name,
+        currency: account.currency,
+        totalValue: accountTotal,
+        stocks: stockValue,
+        cash: cashValue
+      });
+    });
+
+    // 如果這個類別有資產，添加到結果中
+    if (categoryTotal > 0) {
+      result.push({
+        category: category as CashFlowCategory | 'UNCATEGORIZED',
+        categoryName: categoryNames[category] || category,
+        totalValue: categoryTotal,
+        accounts: accountBreakdowns
+      });
+    }
+  });
+
+  // 處理只有現金但沒有股票的帳戶（歸類到 UNCATEGORIZED）
+  const processedAccountIds = new Set<string>();
+  categoryAccountMap.forEach(accountMap => {
+    accountMap.forEach((_, accountId) => {
+      processedAccountIds.add(accountId);
+    });
+  });
+
+  const uncategorizedCash: AccountBreakdown[] = [];
+  let uncategorizedTotal = 0;
+  accountCashMap.forEach((cashValue, accountId) => {
+    if (!processedAccountIds.has(accountId) && cashValue > 0) {
+      const account = accounts.find(a => a.id === accountId);
+      if (account) {
+        uncategorizedTotal += cashValue;
+        uncategorizedCash.push({
+          accountId: account.id,
+          accountName: account.name,
+          currency: account.currency,
+          totalValue: cashValue,
+          stocks: 0,
+          cash: cashValue
+        });
+      }
+    }
+  });
+
+  // 如果有未分類的現金，添加到結果中
+  if (uncategorizedTotal > 0) {
+    // 檢查是否已有 UNCATEGORIZED 類別
+    const uncatIndex = result.findIndex(r => r.category === 'UNCATEGORIZED');
+    if (uncatIndex >= 0) {
+      result[uncatIndex].totalValue += uncategorizedTotal;
+      result[uncatIndex].accounts.push(...uncategorizedCash);
+    } else {
+      result.push({
+        category: 'UNCATEGORIZED',
+        categoryName: categoryNames['UNCATEGORIZED'],
+        totalValue: uncategorizedTotal,
+        accounts: uncategorizedCash
+      });
+    }
+  }
+
+  // 按總值排序（從大到小）
+  result.sort((a, b) => b.totalValue - a.totalValue);
+
+  return result;
 };
