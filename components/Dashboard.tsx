@@ -384,8 +384,8 @@ const Dashboard: React.FC<Props> = ({
                         data={assetAllocation as any[]}
                         cx="50%"
                         cy="50%"
-                        innerRadius={80}
-                        outerRadius={150}
+                        innerRadius={60}
+                        outerRadius={100}
                         paddingAngle={2}
                         dataKey="value"
                       >
